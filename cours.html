@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Les cours</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Tous les cours, sans exercice : un onglet Algorigrammes, un onglet Python. */
+:root {
+  --fond: #eef3f2; --papier: #ffffff; --encre: #13232b; --doux: #56686f; --trait: #d3dfe0;
+  --accent: #0d6a6a; --accent-fort: #0a5252; --surligne: #f2c230; --surligne-doux: #fbf0c8;
+  --ok: #1d8049; --ko: #b93d2a; --code-fond: #f7faf9;
+  --sch-ovale: #dcefe9; --sch-losange: #e8eef9; --sch-losange-trait: #2b4c8c; --sch-es-trait: #a86a00;
+  --algo: #2b4c8c;
+  --f-titre: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-texte: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-code: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #0e171a; --papier: #152126; --encre: #e3ecec; --doux: #93a5aa; --trait: #2a3b41;
+    --accent: #4db3ab; --accent-fort: #7ccbc4; --surligne: #f0c645; --surligne-doux: #3b3420;
+    --ok: #52c483; --ko: #f07b63; --code-fond: #111b1f;
+    --sch-ovale: #173330; --sch-losange: #1b2740; --sch-losange-trait: #8aa8e6; --sch-es-trait: #f0c645;
+    --algo: #8aa8e6;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--fond); color: var(--encre); font: 16px/1.6 var(--f-texte); }
+:focus-visible { outline: 3px solid var(--surligne); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--f-titre); text-wrap: balance; line-height: 1.15; margin: 0; }
+code, pre { font-family: var(--f-code); font-size: .9em; }
+:not(pre) > code { background: var(--surligne-doux); padding: .05em .3em; border-radius: 4px; }
+
+.barre { display: flex; align-items: center; gap: 1rem; padding: .6rem 16px; background: var(--papier); border-bottom: 1px solid var(--trait); flex-wrap: wrap; }
+.barre .marque { font-family: var(--f-titre); font-weight: 800; font-size: 1.15rem; }
+.barre .marque span { color: var(--accent); }
+.barre a { font-weight: 700; color: var(--accent); text-decoration: none; border: 1.5px solid var(--trait); border-radius: 8px; padding: .35rem .7rem; background: var(--fond); font-size: .9rem; }
+.barre a:hover { border-color: var(--accent); }
+.barre .droite { margin-left: auto; display: flex; gap: .4rem; flex-wrap: wrap; }
+
+.onglets { display: flex; gap: .3rem; padding: 0 16px; background: var(--papier); border-bottom: 1px solid var(--trait); overflow-x: auto; }
+.onglets button { border: 0; background: none; font: 700 1.05rem var(--f-texte); color: var(--doux); padding: .85rem 1.1rem; border-bottom: 4px solid transparent; cursor: pointer; white-space: nowrap; }
+.onglets button:hover { color: var(--encre); }
+.onglets button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.onglets button#o-algo[aria-selected="true"] { color: var(--algo); border-bottom-color: var(--algo); }
+
+main { max-width: 860px; margin: 0 auto; padding: 1.6rem 16px 5rem; display: grid; gap: 1.2rem; }
+.intro h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 800; }
+.intro p { margin: .3rem 0 0; color: var(--doux); }
+.sommaire { display: flex; flex-wrap: wrap; gap: .4rem; }
+.sommaire a { text-decoration: none; color: var(--encre); background: var(--papier); border: 1.5px solid var(--trait); border-radius: 99px; padding: .25rem .8rem; font-size: .9rem; }
+.sommaire a:hover { border-color: var(--accent); }
+
+.lecon { background: var(--papier); border: 1px solid var(--trait); border-radius: 12px; padding: 1.2rem 1.3rem; scroll-margin-top: 1rem; }
+.lecon .num { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); font-weight: 700; }
+.algo .lecon .num { color: var(--algo); }
+.lecon h2 { font-size: 1.45rem; font-weight: 800; margin-top: .15rem; }
+.lecon .texte { max-width: 70ch; }
+.lecon .texte p { margin: .55rem 0; }
+.lecon pre { background: var(--code-fond); border: 1px solid var(--trait); border-radius: 8px; padding: .6rem .8rem; overflow-x: auto; margin: .5rem 0; }
+.lecon pre.sortie { border-style: dashed; color: var(--doux); }
+table.ops { border-collapse: collapse; margin: .5rem 0; }
+table.ops td { padding: .3rem .8rem .3rem 0; vertical-align: top; }
+table.trace { border-collapse: collapse; margin: .5rem 0; font-variant-numeric: tabular-nums; }
+table.trace th, table.trace td { border: 1px solid var(--trait); padding: .25rem .7rem; text-align: center; }
+table.trace th { background: var(--fond); font-size: .85rem; }
+.lien-exos { display: inline-block; margin-top: .6rem; font-weight: 700; color: var(--accent); }
+
+.forme { display: inline-block; padding: .25rem .8rem; font-size: .85rem; border: 1.5px solid var(--encre); background: var(--papier); white-space: nowrap; }
+.forme.ovale { border-radius: 99px; background: var(--sch-ovale); border-color: var(--accent); }
+.forme.rect { border-radius: 4px; }
+.forme.losange { background: var(--sch-losange); border-color: var(--sch-losange-trait); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); padding: .7rem 1.6rem; }
+.cours-schema { display: flex; justify-content: center; margin-top: .8rem; overflow-x: auto; background: var(--fond); border-radius: 10px; padding: .6rem; }
+.schema { max-width: 100%; height: auto; }
+.schema text { font: 14px var(--f-texte); dominant-baseline: central; text-anchor: middle; fill: var(--encre); }
+.schema .sch-etiquette { font-size: 12px; font-weight: 700; fill: var(--doux); dominant-baseline: auto; }
+.sch-debut, .sch-fin { fill: var(--sch-ovale); stroke: var(--accent); stroke-width: 1.5; }
+.sch-action { fill: var(--papier); stroke: var(--encre); stroke-width: 1.5; }
+.sch-si { fill: var(--sch-losange); stroke: var(--sch-losange-trait); stroke-width: 1.5; }
+.sch-fleche, .sch-trait { fill: none; stroke: var(--doux); stroke-width: 1.5; }
+.sch-pointe { fill: var(--doux); }
+@media print { .barre, .onglets, .sommaire { display: none; } body { background: #fff; } .lecon { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<header class="barre">
+  <div class="marque">Les cours <span>en seconde</span></div>
+  <div class="droite">
+    <a href="index.html">← Accueil</a>
+    <a href="algo.html" id="l-algo">Exercices algorigrammes</a>
+    <a href="python.html" id="l-python">Exercices Python</a>
+  </div>
+</header>
+<div class="onglets" role="tablist" aria-label="Cours">
+  <button id="o-algo" role="tab" aria-controls="panneau" type="button">📖 Cours algorigrammes</button>
+  <button id="o-python" role="tab" aria-controls="panneau" type="button">📖 Cours Python</button>
+</div>
+<main id="panneau" role="tabpanel">
+  <div class="intro"><h1 id="titre"></h1><p id="sous-titre"></p></div>
+  <nav class="sommaire" id="sommaire" aria-label="Sommaire"></nav>
+  <div id="lecons" style="display:grid;gap:1rem"></div>
+</main>
+
+<script src="exercices.js?v=20261014d"></script>
+<script src="algorigrammes.js?v=20261014d"></script>
+<script src="schema.js?v=20261014d"></script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const COURS = {
+  algo: { donnees: window.PARCOURS_ALGO, titre: "Cours : algorigrammes", sous: "À lire en premier. Un algorigramme décrit un programme avec un schéma, avant de l'écrire en Python.", exos: "algo.html" },
+  python: { donnees: window.PARCOURS, titre: "Cours : Python", sous: "Chaque leçon correspond à une notion des exercices Python.", exos: "python.html" }
+};
+function afficher(nom) {
+  const c = COURS[nom] || COURS.algo;
+  nom = COURS[nom] ? nom : "algo";
+  ["algo", "python"].forEach(n => $("o-" + n).setAttribute("aria-selected", String(n === nom)));
+  $("panneau").className = nom;
+  $("titre").textContent = c.titre;
+  $("sous-titre").textContent = c.sous;
+  document.title = c.titre;
+  const som = $("sommaire"), lec = $("lecons");
+  som.replaceChildren(); lec.replaceChildren();
+  c.donnees.forEach((m, i) => {
+    const ancre = `${nom}-${i + 1}`;
+    const a = document.createElement("a");
+    a.href = "#" + ancre; a.textContent = `${i + 1}. ${m.titre}`;
+    a.addEventListener("click", ev => { ev.preventDefault(); document.getElementById(ancre).scrollIntoView({ behavior: "smooth" }); });
+    som.appendChild(a);
+    const s = document.createElement("section");
+    s.className = "lecon"; s.id = ancre;
+    s.innerHTML = `<div class="num"></div><h2></h2><div class="texte"></div>`;
+    s.querySelector(".num").textContent = `Notion ${i + 1} · ${m.notion}`;
+    s.querySelector("h2").textContent = m.titre;
+    s.querySelector(".texte").innerHTML = m.cours + (m.schemaCours && window.Schema ? `<div class="cours-schema">${Schema.dessiner(m.schemaCours)}</div>` : "");
+    const l = document.createElement("a");
+    l.className = "lien-exos"; l.href = c.exos; l.textContent = `Faire les exercices ${i + 1}.1 à ${i + 1}.${m.exercices.length} →`;
+    s.appendChild(l);
+    lec.appendChild(s);
+  });
+}
+function depuisAdresse() { afficher(location.hash.replace("#", "").split("-")[0]); }
+["algo", "python"].forEach(n => $("o-" + n).addEventListener("click", () => { history.replaceState(null, "", "#" + n); afficher(n); window.scrollTo(0, 0); }));
+window.addEventListener("hashchange", depuisAdresse);
+depuisAdresse();
+</script>
+</body>
+</html>

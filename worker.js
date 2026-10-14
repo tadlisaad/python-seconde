@@ -1,7 +1,7 @@
 /* Exécute Python (Pyodide) à part de la page, pour pouvoir arrêter une boucle infinie. */
 const PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 importScripts(PYODIDE + "pyodide.js");
-importScripts("moteur.js");
+importScripts("moteur.js?v=20261014d");
 
 let executer = null;
 const pret = loadPyodide({ indexURL: PYODIDE }).then(py => {

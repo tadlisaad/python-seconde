@@ -20,18 +20,23 @@ window.PARCOURS = [
   {
     id: "m1",
     titre: "Afficher",
-    notion: "print et suite d'instructions",
+    notion: "print et calculs",
     cours: `
 <p>Un programme est une <strong>suite d'instructions</strong> exécutées dans l'ordre, de haut en bas.</p>
-<p><code>print(...)</code> affiche ce qu'on lui donne. Un texte s'écrit entre guillemets ; un calcul s'écrit sans guillemets et Python affiche son résultat.</p>
-<pre>print("Bonjour")
-print(3 + 4)
-print("Total :", 3 + 4)</pre>
-<p>affiche :</p>
-<pre class="sortie">Bonjour
-7
-Total : 7</pre>
-<p>Avec plusieurs éléments séparés par des virgules, <code>print</code> les met à la suite avec un espace entre eux.</p>`,
+<p><strong>1. Afficher un texte.</strong> <code>print(...)</code> affiche ce qu'on lui donne. Un texte s'écrit <strong>entre guillemets</strong>.</p>
+<pre>print("Bonjour")</pre>
+<pre class="sortie">Bonjour</pre>
+<p><strong>2. Faire calculer.</strong> Sans guillemets, Python <strong>calcule</strong> et affiche le résultat.</p>
+<table class="ops"><tr><td><code>+</code></td><td>addition</td><td><code>print(10 + 5)</code> affiche 15</td></tr>
+<tr><td><code>-</code></td><td>soustraction</td><td><code>print(10 - 5)</code> affiche 5</td></tr>
+<tr><td><code>*</code></td><td>multiplication (le signe × du clavier n'existe pas)</td><td><code>print(10 * 5)</code> affiche 50</td></tr>
+<tr><td><code>/</code></td><td>division</td><td><code>print(10 / 5)</code> affiche 2.0</td></tr></table>
+<p>Attention à la différence :</p>
+<pre>print(2 + 3)      # calcul : affiche 5
+print("2 + 3")    # texte : affiche 2 + 3</pre>
+<p><strong>3. Mélanger texte et calcul.</strong> On sépare les morceaux par des <strong>virgules</strong> ; Python met un espace entre eux.</p>
+<pre>print("Total :", 3 + 4)</pre>
+<pre class="sortie">Total : 7</pre>`,
     exercices: [
       {
         id: "m1e1", titre: "Premier message",
@@ -48,20 +53,22 @@ Total : 7</pre>
         indices: ["Chaque print affiche une ligne.", "Il te faut deux instructions print, l'une sous l'autre."]
       },
       {
-        id: "m1e3", titre: "Heures dans une année",
-        enonce: "Une année compte 365 jours de 24 heures. Fais <strong>calculer</strong> par Python le nombre d'heures dans une année et affiche le résultat.<br>Tu n'as pas le droit d'écrire le résultat toi-même.",
-        depart: "",
-        tests: [{ entree: "", attendu: "8760" }],
+        id: "m1e3", titre: "Python calculatrice",
+        enonce: "<p>Le programme contient déjà un exemple. Clique sur <strong>Exécuter</strong> pour voir ce qu'il affiche.</p><p>Ajoute ensuite <strong>une ligne</strong> qui fait calculer à Python le nombre d'heures dans une année : 365 jours × 24 heures.</p><p>Rappel : la multiplication s'écrit <code>*</code>. Tu n'as pas le droit d'écrire le résultat toi-même.</p>",
+        depart: "# Exemple : Python calcule 10 + 5 et affiche 15\nprint(10 + 5)\n\n# À toi : fais calculer 365 × 24 sur la ligne suivante\n",
+        tests: [{ entree: "", attendu: "15\n8760" }],
+        exige: [{ motif: "\\*", message: "Utilise le signe * pour la multiplication." }],
         interdit: [{ motif: "8760", message: "Le résultat doit être calculé par Python, pas écrit à la main." }],
-        indices: ["La multiplication s'écrit avec *", "print(365 * 24)"]
+        indices: ["Copie la ligne de l'exemple et change le calcul.", "Pas de guillemets autour du calcul : print(365 * 24)"]
       },
       {
         id: "m1e4", titre: "Une phrase avec un calcul",
-        enonce: "Affiche la phrase <code>Il y a 168 heures dans une semaine</code> en faisant calculer le nombre 168 par Python (7 jours × 24 heures).",
+        enonce: "<p>Exemple : ce programme affiche <code>Une journée dure 1440 minutes</code>.</p><pre>print(\"Une journée dure\", 24 * 60, \"minutes\")</pre><p>Sur le même modèle, affiche la phrase <code>Il y a 168 heures dans une semaine</code> en faisant calculer 168 par Python (7 jours × 24 heures).</p>",
         depart: "",
         tests: [{ entree: "", attendu: "Il y a 168 heures dans une semaine" }],
+        exige: [{ motif: "\\*", message: "Fais calculer 7 × 24 avec le signe *." }],
         interdit: [{ motif: "168", message: "Le nombre 168 doit être calculé, pas écrit à la main." }],
-        indices: ["print peut recevoir plusieurs éléments séparés par des virgules.", "print(\"Il y a\", 7 * 24, \"heures dans une semaine\")"]
+        indices: ["Trois morceaux séparés par des virgules : un texte, un calcul, un texte.", "print(\"Il y a\", 7 * 24, \"heures dans une semaine\")"]
       }
     ]
   },
@@ -352,11 +359,37 @@ print(n)</pre>
       },
       {
         id: "m7e3", titre: "Devine le nombre",
-        enonce: "Le nombre secret est 42. Lis des propositions jusqu'à ce que l'utilisateur trouve. Pour chaque proposition fausse, affiche <code>Trop petit</code> ou <code>Trop grand</code>. Quand il trouve, affiche <code>Gagné ! Nombre d'essais : </code> suivi du nombre d'essais.",
-        depart: "secret = 42\n",
+        enonce: `<p>Le joueur doit deviner le nombre secret <strong>42</strong>. Voici une partie :</p>
+<pre class="sortie">10          ← le joueur tape 10
+Trop petit
+50          ← il tape 50
+Trop grand
+42          ← il tape 42
+Gagné ! Nombre d'essais : 3</pre>
+<p>Le programme est <strong>presque écrit</strong>. Complète les 3 trous dans la boucle, dans l'ordre :</p>
+<ol><li>Remplace les <code>"..."</code> par <code>"Trop petit"</code> et <code>"Trop grand"</code>.</li>
+<li>Lis une nouvelle proposition : c'est la même ligne qu'avant la boucle.</li>
+<li>Ajoute 1 au compteur <code>essais</code>.</li></ol>
+<p>Astuce : vérifie après chaque étape avec <strong>Exécuter</strong>, en tapant par exemple <code>10</code>, <code>50</code> et <code>42</code> dans « Entrée clavier ». Tant que l'étape 2 manque, le programme ne s'arrête pas : c'est normal.</p>`,
+        depart: `secret = 42
+essais = 1
+proposition = int(input())
+
+while proposition != secret:
+    if proposition < secret:
+        print("...")
+    else:
+        print("...")
+    # Étape 2 : lis une nouvelle proposition
+
+    # Étape 3 : ajoute 1 à essais
+
+
+print("Gagné ! Nombre d'essais :", essais)
+`,
         tests: [{ entree: "10\n50\n42", attendu: "Trop petit\nTrop grand\nGagné ! Nombre d'essais : 3" }, { entree: "42", attendu: "Gagné ! Nombre d'essais : 1" }, { entree: "99\n1\n41\n43\n42", attendu: "Trop grand\nTrop petit\nTrop petit\nTrop grand\nGagné ! Nombre d'essais : 5" }],
-        exige: [{ motif: "\\bwhile\\b", message: "Utilise une boucle while." }],
-        indices: ["Lis une première proposition avant la boucle, et compte les essais dans une variable.", "while proposition != secret: affiche l'indice, puis lis une nouvelle proposition et ajoute 1 au compteur."]
+        exige: [{ motif: "\\bwhile\\b", message: "Garde la boucle while." }],
+        indices: ["Étape 2 : copie la ligne proposition = int(input()) dans la boucle, décalée de 4 espaces.", "Étape 3 : essais = essais + 1 (décalée de 4 espaces, dans la boucle)."]
       },
       {
         id: "m7e4", titre: "Somme jusqu'à zéro",
