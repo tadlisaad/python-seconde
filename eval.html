@@ -432,13 +432,14 @@ async function charger() {
   $("b-connexion").disabled = true;
   try {
     const d = await appelGet({ action: "evalEtat", id: S.eleve.id, code: S.eleve.code });
-    if (!d.ok) { err.textContent = "Identifiant ou code incorrect."; err.hidden = false; montrer("ecran-connexion"); return; }
+    if (!d.ok) { err.textContent = d.erreur === "trop_d_essais" ? "Trop d'essais ratés. Attends 10 minutes ou demande à ton professeur." : "Identifiant ou code incorrect."; err.hidden = false; montrer("ecran-connexion"); return; }
     S.eleve.prenom = d.prenom;
     S.eleve.classe = d.classe;
     if (!d.eval) return info("Pas d'évaluation en cours", `Bonjour ${d.prenom}. Ton professeur n'a pas encore ouvert l'évaluation. Attends son signal, puis clique sur Réessayer.`);
     S.meta = (window.EVALUATIONS || []).find(e => e.id === d.eval.id);
     if (!S.meta) return info("Page à mettre à jour", "Cette évaluation n'est pas encore sur le site. Préviens ton professeur.");
     if (d.eval.rendu) return info("Copie déjà rendue", d.eval.note !== undefined && d.eval.note !== null ? `Tu as déjà rendu ta copie. Ta note : ${virgule(d.eval.note)} / 20.` : "Tu as déjà rendu ta copie pour cette évaluation.");
+    if (d.eval.expire || !d.eval.cle) return info("Temps écoulé", "Le temps de cette évaluation est écoulé, ou ta copie ne peut plus être ouverte. Préviens ton professeur.");
     S.questions = tirerQuestions(await dechiffrer(S.meta, d.eval.cle));
     S.decalage = d.eval.maintenant - Date.now();
     S.debut = d.eval.debut;

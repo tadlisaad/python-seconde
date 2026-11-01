@@ -448,7 +448,9 @@ $("form-cle").addEventListener("submit", async ev => {
   } catch (e) {
     $("erreur-cle").textContent = String(e.message) === "mot_de_passe"
       ? "Mot de passe incorrect."
-      : "Le serveur ne répond pas. Vérifiez l'adresse du script dans config.js et la connexion Internet.";
+      : String(e.message) === "trop_d_essais"
+        ? "Trop d'essais ratés : attendez 15 minutes, ou utilisez le menu « Réinitialiser les blocages de connexion » de la Google Sheet."
+        : "Le serveur ne répond pas. Vérifiez l'adresse du script dans config.js et la connexion Internet.";
     $("erreur-cle").hidden = false;
   }
   $("b-cle").disabled = false;

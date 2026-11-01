@@ -302,7 +302,7 @@ function initConnexion() {
     $("b-connexion").textContent = "Connexion…";
     try {
       const d = await appelGet({ action: "connexion", id, code });
-      if (!d.ok) { err.textContent = "Identifiant ou code incorrect. Vérifie-les avec ton professeur."; err.hidden = false; }
+      if (!d.ok) { err.textContent = d.erreur === "trop_d_essais" ? "Trop d'essais ratés. Attends 10 minutes ou demande à ton professeur de te débloquer." : "Identifiant ou code incorrect. Vérifie-les avec ton professeur."; err.hidden = false; }
       else ouvrir({ id, code, prenom: d.prenom, classe: d.classe }, d);
     } catch {
       err.textContent = "Connexion impossible. Vérifie que l'ordinateur a accès à Internet, puis réessaie.";
