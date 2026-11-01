@@ -376,8 +376,9 @@ function etatPython(pret, echec) {
 }
 
 /* ---------- Échanges avec la Google Sheet ---------- */
-async function appelGet(params) {
-  const r = await fetch(URL_SERVEUR + "?" + new URLSearchParams(params));
+async function appelServeur(params) {
+  // Identifiant et code partent dans le corps de la requête (POST), jamais dans l'adresse.
+  const r = await fetch(URL_SERVEUR, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(params) });
   return r.json();
 }
 let envoiEnCours = false;
@@ -430,7 +431,7 @@ function initConnexion() {
     $("b-connexion").disabled = true;
     $("b-connexion").textContent = "Connexion…";
     try {
-      const d = await appelGet({ action: "connexion", id, code });
+      const d = await appelServeur({ action: "connexion", id, code });
       if (!d.ok) { err.textContent = "Identifiant ou code incorrect. Vérifie-les avec ton professeur."; err.hidden = false; }
       else ouvrir({ id, code, prenom: d.prenom, classe: d.classe }, d);
     } catch {
@@ -457,7 +458,7 @@ function ouvrir(session, serveur) {
     sauver();
   } else if (!DEMO) {
     // Session reprise : on resynchronise en arrière-plan ce qui a été fait sur un autre poste.
-    appelGet({ action: "connexion", id: session.id, code: session.code }).then(d => {
+    appelServeur({ action: "connexion", id: session.id, code: session.code }).then(d => {
       if (!d.ok) return;
       (d.reussis || []).filter(x => IDS.has(x)).forEach(x => S.reussis.add(x));
       Object.entries(d.codes || {}).filter(([exo]) => IDS.has(exo)).forEach(([exo, code]) => { S.tentes.add(exo); if (!(exo in S.codes)) S.codes[exo] = code; });

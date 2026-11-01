@@ -312,10 +312,6 @@ const maintenant = () => Date.now() + S.decalage;
 function sauverLocal() { local.ecrire(cleLocale(), { version: S.meta.iv, reponses: S.reponses, file: S.file }); }
 
 /* ---------- Réseau ---------- */
-async function appelGet(params) {
-  const r = await fetch(URL_SERVEUR + "?" + new URLSearchParams(params));
-  return r.json();
-}
 async function appelPost(corps) {
   const r = await fetch(URL_SERVEUR, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(corps) });
   return r.json();
@@ -431,7 +427,7 @@ async function charger() {
   err.hidden = true;
   $("b-connexion").disabled = true;
   try {
-    const d = await appelGet({ action: "evalEtat", id: S.eleve.id, code: S.eleve.code });
+    const d = await appelPost({ action: "evalEtat", id: S.eleve.id, code: S.eleve.code });
     if (!d.ok) { err.textContent = d.erreur === "trop_d_essais" ? "Trop d'essais ratés. Attends 10 minutes ou demande à ton professeur." : "Identifiant ou code incorrect."; err.hidden = false; montrer("ecran-connexion"); return; }
     S.eleve.prenom = d.prenom;
     S.eleve.classe = d.classe;
@@ -439,8 +435,9 @@ async function charger() {
     S.meta = (window.EVALUATIONS || []).find(e => e.id === d.eval.id);
     if (!S.meta) return info("Page à mettre à jour", "Cette évaluation n'est pas encore sur le site. Préviens ton professeur.");
     if (d.eval.rendu) return info("Copie déjà rendue", d.eval.note !== undefined && d.eval.note !== null ? `Tu as déjà rendu ta copie. Ta note : ${virgule(d.eval.note)} / 20.` : "Tu as déjà rendu ta copie pour cette évaluation.");
-    if (d.eval.expire || !d.eval.cle) return info("Temps écoulé", "Le temps de cette évaluation est écoulé, ou ta copie ne peut plus être ouverte. Préviens ton professeur.");
-    S.questions = tirerQuestions(await dechiffrer(S.meta, d.eval.cle));
+    if (d.eval.expire || (d.eval.debut && !d.eval.cle)) return info("Temps écoulé", "Le temps de cette évaluation est écoulé, ou ta copie ne peut plus être ouverte. Préviens ton professeur.");
+    // La clé n'est envoyée qu'une fois l'épreuve commencée : avant, il n'y a aucune question dans la page.
+    S.questions = d.eval.cle ? tirerQuestions(await dechiffrer(S.meta, d.eval.cle)) : [];
     S.decalage = d.eval.maintenant - Date.now();
     S.debut = d.eval.debut;
     const l = local.lire(cleLocale(), {});
@@ -495,13 +492,19 @@ $("b-commencer").addEventListener("click", async () => {
   const ok = await pleinEcran();
   if (!ok) { csErr.textContent = "Le plein écran est obligatoire. Utilise Chrome, Edge ou Firefox sur un ordinateur, puis réessaie."; csErr.hidden = false; return; }
   $("b-commencer").disabled = true;
-  if (!S.debut) {
+  if (!S.debut || !S.questions.length) {
     try {
       const d = await appelPost({ action: "evalEvenement", id: S.eleve.id, code: S.eleve.code, evaluation: S.meta.id, type: "debut" });
       if (!d.ok) throw new Error(d.erreur);
       S.debut = d.debut;
+      if (!S.questions.length) {
+        if (!d.cle) throw new Error("cle");
+        S.questions = tirerQuestions(await dechiffrer(S.meta, d.cle));
+      }
     } catch (e) {
-      csErr.textContent = e.message === "fermee" ? "L'évaluation vient d'être fermée par ton professeur." : "Impossible de démarrer : vérifie la connexion puis réessaie.";
+      csErr.textContent = e.message === "fermee" ? "L'évaluation vient d'être fermée par ton professeur."
+        : e.message === "expire" ? "Le temps de cette évaluation est écoulé. Préviens ton professeur."
+        : "Impossible de démarrer : vérifie la connexion puis réessaie.";
       csErr.hidden = false;
       $("b-commencer").disabled = false;
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
