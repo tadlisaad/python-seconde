@@ -73,6 +73,8 @@ table.ops td { padding: .3rem .8rem .3rem 0; vertical-align: top; }
 table.trace { border-collapse: collapse; margin: .5rem 0; font-variant-numeric: tabular-nums; }
 table.trace th, table.trace td { border: 1px solid var(--trait); padding: .25rem .7rem; text-align: center; }
 table.trace th { background: var(--fond); font-size: .85rem; }
+.lecon.ferme .texte { color: var(--doux); }
+.lecon.ferme .lien-exos { display: none; }
 .lien-exos { display: inline-block; margin-top: .6rem; font-weight: 700; color: var(--accent); }
 
 .forme { display: inline-block; padding: .25rem .8rem; font-size: .85rem; border: 1.5px solid var(--encre); background: var(--papier); white-space: nowrap; }
@@ -115,6 +117,7 @@ table.trace th { background: var(--fond); font-size: .85rem; }
   <div id="lecons" style="display:grid;gap:1rem"></div>
 </main>
 
+<script src="acces.js?v=20261102a"></script>
 <script src="exercices.js?v=20261102c"></script>
 <script src="algorigrammes.js?v=20261014d"></script>
 <script src="schema.js?v=20261014d"></script>
@@ -138,7 +141,8 @@ function afficher(nom) {
   c.donnees.forEach((m, i) => {
     const ancre = `${nom}-${i + 1}`;
     const a = document.createElement("a");
-    a.href = "#" + ancre; a.textContent = `${i + 1}. ${m.titre}`;
+    const ouvert = ACCES.cours(nom, i + 1);
+    a.href = "#" + ancre; a.textContent = `${ouvert ? "" : "🔒 "}${i + 1}. ${m.titre}`;
     a.addEventListener("click", ev => { ev.preventDefault(); document.getElementById(ancre).scrollIntoView({ behavior: "smooth" }); });
     som.appendChild(a);
     const s = document.createElement("section");
@@ -146,6 +150,7 @@ function afficher(nom) {
     s.innerHTML = `<div class="num"></div><h2></h2><div class="texte"></div>`;
     s.querySelector(".num").textContent = `Notion ${i + 1} · ${m.notion}`;
     s.querySelector("h2").textContent = m.titre;
+    if (!ouvert) { s.classList.add("ferme"); s.querySelector(".texte").textContent = "🔒 Ce cours n'est pas encore ouvert. Ton professeur l'ouvrira bientôt."; lec.appendChild(s); return; }
     s.querySelector(".texte").innerHTML = m.cours + (m.schemaCours && window.Schema ? `<div class="cours-schema">${Schema.dessiner(m.schemaCours)}</div>` : "");
     const l = document.createElement("a");
     l.className = "lien-exos"; l.href = c.exos; l.textContent = `Faire les exercices ${i + 1}.1 à ${i + 1}.${m.exercices.length} →`;

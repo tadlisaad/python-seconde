@@ -92,6 +92,12 @@ kbd { font-family: var(--f-code); font-size: .75em; border: 1px solid currentCol
 .pastille.tente { border-color: var(--surligne); background: var(--surligne-doux); }
 .pastille.reussi { border-color: var(--ok); background: var(--ok-doux); color: var(--ok); font-weight: 600; }
 .pastille.actif { outline: 2.5px solid var(--accent); outline-offset: 1px; }
+.pastille.ferme { opacity: .55; cursor: not-allowed; border-style: dashed; }
+.pastille.ferme:hover { border-color: var(--trait); }
+.module.ferme h2 small::before { content: "🔒 "; }
+.verrou { max-width: 60ch; margin: 3rem auto; text-align: center; padding: 1.5rem; border: 1.5px dashed var(--trait); border-radius: 12px; background: var(--papier); color: var(--doux); }
+.verrou strong { display: block; color: var(--encre); font-size: 1.15rem; margin-bottom: .3rem; }
+.cours-ferme { margin: 0; color: var(--doux); font-size: .95rem; border: 1.5px dashed var(--trait); border-radius: 10px; padding: .7rem .9rem; }
 
 #exo { overflow-y: auto; padding: 1.5rem 16px 4rem; }
 .exo-contenu { max-width: 860px; margin-inline: auto; display: grid; gap: 1.1rem; }
@@ -247,6 +253,7 @@ details.cours summary::-webkit-details-marker { display: none; }
   <div class="corps">
     <nav id="parcours" aria-label="Parcours"></nav>
     <main id="exo">
+      <div class="verrou" id="verrou" hidden><strong>Rien n'est ouvert pour le moment</strong>Ton professeur ouvrira les exercices au fur et à mesure. Reviens plus tard ou recharge la page.</div>
       <div class="exo-contenu">
         <div class="exo-tete">
           <div>
@@ -257,6 +264,7 @@ details.cours summary::-webkit-details-marker { display: none; }
         <div class="col-gauche">
           <div class="enonce" id="enonce"></div>
           <details class="cours" id="cours"><summary id="cours-titre">Le cours</summary><div class="cours-texte" id="cours-texte"></div></details>
+          <p class="cours-ferme" id="cours-ferme" hidden>🔒 Le cours de cette notion n'est pas encore ouvert.</p>
         </div>
         <div class="col-droite">
         <div class="editeur">
@@ -291,6 +299,7 @@ details.cours summary::-webkit-details-marker { display: none; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
 <script src="config.js?v=20261102a"></script>
+<script src="acces.js?v=20261102a"></script>
 <script src="ms.js?v=20261102b"></script>
 <script src="exercices.js?v=20261102c"></script>
 <script src="verif.js?v=20261014d"></script>
@@ -424,9 +433,11 @@ function initConnexion() {
   });
 }
 
+let suiviAcces = false;
 function ouvrir(session, serveur) {
   S.eleve = session;
   local.ecrire("pyclasse:session", session);
+  if (serveur) ACCES.sync(serveur);
   const l = local.lire(cleEleve(), {});
   S.reussis = new Set((l.reussis || []).filter(x => IDS.has(x)));
   S.tentes = new Set((l.tentes || []).filter(x => IDS.has(x)));
@@ -443,7 +454,7 @@ function ouvrir(session, serveur) {
       if (!d.ok) return;
       (d.reussis || []).filter(x => IDS.has(x)).forEach(x => S.reussis.add(x));
       Object.entries(d.codes || {}).filter(([exo]) => IDS.has(exo)).forEach(([exo, code]) => { S.tentes.add(exo); if (!(exo in S.codes)) S.codes[exo] = code; });
-      sauver(); dessinerParcours(); majJauge();
+      sauver(); ACCES.sync(d); majAcces(); majJauge();
     }).catch(() => {});
   }
   $("ecran-connexion").hidden = true;
@@ -454,8 +465,8 @@ function ouvrir(session, serveur) {
   dessinerParcours();
   majJauge();
   majStatut();
-  const premier = EXOS.find(e => !S.reussis.has(e.id)) || EXOS[0];
-  choisir(premier.id);
+  majAcces();
+  if (!DEMO && !suiviAcces) { suiviAcces = true; ACCES.suivre(() => appelServeur({ action: "connexion", id: S.eleve.id, code: S.eleve.code }), majAcces); }
   envoyer();
 }
 
@@ -471,13 +482,28 @@ async function deconnecter(message) {
 $("b-deconnexion").addEventListener("click", () => deconnecter());
 
 /* ---------- Parcours ---------- */
+/* Réglage du professeur (acces.js) : notions fermées grisées, cours masqué, message si rien n'est ouvert. */
+function majCours(exo) {
+  const ouvert = ACCES.cours("python", Number(exo.num.split(".")[0]));
+  $("cours").hidden = !ouvert;
+  $("cours-ferme").hidden = ouvert;
+}
+function majAcces() {
+  dessinerParcours();
+  const rien = !EXOS.some(e => ACCES.exo(e.id));
+  $("verrou").hidden = !rien;
+  document.querySelector(".exo-contenu").hidden = rien;
+  if (rien) return;
+  if (!S.exo || !ACCES.exo(S.exo.id)) choisir((EXOS.find(e => ACCES.exo(e.id) && !S.reussis.has(e.id)) || EXOS.find(e => ACCES.exo(e.id))).id);
+  else majCours(S.exo);
+}
 function dessinerParcours() {
   const nav = $("parcours");
   nav.innerHTML = "";
   PARCOURS.forEach((m, im) => {
     const faits = m.exercices.filter(e => S.reussis.has(e.id)).length;
     const bloc = document.createElement("section");
-    bloc.className = "module";
+    bloc.className = "module" + (ACCES.exercices("python", im + 1) ? "" : " ferme");
     bloc.innerHTML = `<h2><span></span><small>${faits}/${m.exercices.length}</small></h2><p class="notion"></p><div class="pastilles"></div>`;
     bloc.querySelector("h2 span").textContent = `${im + 1}. ${m.titre}`;
     bloc.querySelector(".notion").textContent = m.notion;
@@ -491,7 +517,8 @@ function dessinerParcours() {
       if (S.exo && S.exo.id === e.id) b.classList.add("actif");
       b.textContent = `${im + 1}.${ie + 1}`;
       b.title = e.titre + (S.reussis.has(e.id) ? " (réussi)" : S.tentes.has(e.id) ? " (commencé)" : "");
-      b.addEventListener("click", () => choisir(e.id));
+      if (!ACCES.exo(e.id)) { b.classList.add("ferme"); b.disabled = true; b.title = e.titre + " (pas encore ouvert)"; }
+      else b.addEventListener("click", () => choisir(e.id));
       zone.appendChild(b);
     });
     nav.appendChild(bloc);
@@ -545,6 +572,7 @@ function choisir(id) {
   $("cours-titre").textContent = `Le cours : ${exo.module.titre.toLowerCase()}`;
   $("cours-texte").innerHTML = exo.module.cours;
   $("cours").open = exo.num.endsWith(".1") && !S.tentes.has(exo.id);
+  majCours(exo);
   $("enonce").innerHTML = exo.enonce;
   const sauve = S.codes[exo.id];
   editeur.setValue(sauve && sauve.trim() ? sauve : exo.depart);

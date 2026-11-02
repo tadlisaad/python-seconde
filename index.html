@@ -86,6 +86,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 1.8rem 16px 4rem; display: gr
 .carte h2 { font-size: 1.55rem; font-weight: 800; display: flex; align-items: center; gap: .55rem; }
 .carte p { margin: 0; color: var(--doux); }
 .icone-carte { width: 38px; height: 38px; flex: none; }
+.acces-note { margin: 0; font-size: .88rem; color: var(--doux); border: 1.5px dashed var(--trait); border-radius: 8px; padding: .4rem .6rem; }
 .progression { display: grid; gap: .3rem; font-size: .9rem; color: var(--doux); font-variant-numeric: tabular-nums; }
 .piste { height: 10px; background: var(--trait); border-radius: 99px; overflow: hidden; }
 .rempli { height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s; }
@@ -170,6 +171,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 1.8rem 16px 4rem; display: gr
         <h2><svg class="icone-carte" viewBox="0 0 40 40" aria-hidden="true"><rect x="10" y="2" width="20" height="8" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 10v5M20 27v5" stroke="currentColor" stroke-width="2"/><path d="M20 15l9 6-9 6-9-6z" fill="none" stroke="currentColor" stroke-width="2"/><rect x="11" y="32" width="18" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>Algorigrammes</h2>
         <p>Lire, faire tourner et compléter des schémas. 5 notions, 20 exercices.</p>
         <div class="progression"><div class="piste"><div class="rempli" id="jauge-algo" style="width:0%"></div></div><span id="texte-algo">0 / 20 réussis</span></div>
+        <p class="acces-note" id="acces-algo" hidden></p>
         <div class="boutons">
           <a class="bouton plein" href="algo.html">Exercices</a>
           <a class="bouton" href="cours.html#algo">📖 Cours</a>
@@ -181,6 +183,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 1.8rem 16px 4rem; display: gr
         <h2><svg class="icone-carte" viewBox="0 0 40 40" aria-hidden="true"><rect x="3" y="6" width="34" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 15l5 5-5 5M19 26h10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Python</h2>
         <p>Écrire de vrais programmes, vérifiés automatiquement. 8 notions, 32 exercices.</p>
         <div class="progression"><div class="piste"><div class="rempli" id="jauge-python" style="width:0%"></div></div><span id="texte-python">0 / 32 réussis</span></div>
+        <p class="acces-note" id="acces-python" hidden></p>
         <div class="boutons">
           <a class="bouton plein" href="python.html">Exercices</a>
           <a class="bouton" href="cours.html#python">📖 Cours</a>
@@ -209,6 +212,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 1.8rem 16px 4rem; display: gr
 </div>
 
 <script src="config.js?v=20261102a"></script>
+<script src="acces.js?v=20261102a"></script>
 <script src="ms.js?v=20261102b"></script>
 <script src="exercices.js?v=20261102c"></script>
 <script src="algorigrammes.js?v=20261014d"></script>
@@ -242,6 +246,20 @@ function majProgression(session) {
   $("texte-algo").textContent = `${al.size} / ${IDS_ALGO.size} réussis`;
 }
 
+/* Réglage du professeur (acces.js) : on dit à l'élève ce qui n'est pas encore ouvert. */
+function noteAcces(parcours, liste, id) {
+  const total = liste.length, fe = ACCES.nbFermes(parcours, "e", total), fc = ACCES.nbFermes(parcours, "c", total);
+  const p = $(id), morceaux = [];
+  if (fe === total) morceaux.push("Aucun exercice n'est ouvert pour le moment.");
+  else if (fe) morceaux.push(`${fe} notion${fe > 1 ? "s" : ""} sur ${total} : exercices pas encore ouverts.`);
+  if (fc === total) morceaux.push("Aucun cours n'est ouvert pour le moment.");
+  else if (fc) morceaux.push(`${fc} cours pas encore ouvert${fc > 1 ? "s" : ""}.`);
+  p.textContent = morceaux.length ? "🔒 " + morceaux.join(" ") : "";
+  p.hidden = !morceaux.length;
+}
+function majAcces() { noteAcces("python", PARCOURS, "acces-python"); noteAcces("algo", PARCOURS_ALGO, "acces-algo"); }
+let suiviAcces = false;
+
 function etatEval(html, classe) {
   const d = document.createElement("div");
   d.className = "etat-eval " + classe;
@@ -270,6 +288,9 @@ async function verifierEval(session) {
 
 function ouvrir(session, serveur) {
   local.ecrire("pyclasse:session", session);
+  if (serveur) ACCES.sync(serveur);
+  majAcces();
+  if (!DEMO && !suiviAcces) { suiviAcces = true; ACCES.suivre(() => appelServeur({ action: "connexion", id: session.id, code: session.code }), majAcces); }
   $("ecran-connexion").hidden = true;
   $("app").hidden = false;
   $("nom-eleve").textContent = session.prenom || session.id;
@@ -281,6 +302,7 @@ function ouvrir(session, serveur) {
     appelServeur({ action: "connexion", id: session.id, code: session.code }).then(d => {
       if (!d.ok) { deconnecter(session.ms ? "Ta connexion a expiré. Reconnecte-toi avec Microsoft." : "Ton code a changé. Reconnecte-toi."); return; }
       reussisServeur = d.reussis || [];
+      ACCES.sync(d); majAcces();
       majProgression(session);
     }).catch(() => {});
   }
@@ -331,6 +353,7 @@ async function initMicrosoft() {
     const d = await appelServeur({ action: "connexionMs", idToken: r.idToken, nonce: r.nonce });
     if (!d.ok) { montrerErreur(MS.messageErreur(d.erreur)); b.disabled = false; b.textContent = libelle; return "erreur"; }
     const session = { id: d.id, code: d.jeton, prenom: d.prenom, classe: d.classe, ms: true };
+    if (d.acces) session.acces = d.acces;
     if (r.page && r.page !== "index.html") { local.ecrire("pyclasse:session", session); location.replace(r.page); return "ok"; }
     ouvrir(session, d);
     return "ok";

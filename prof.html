@@ -156,6 +156,46 @@ select#choix-eleve { border: 1.5px solid var(--trait); border-radius: 8px; paddi
 @keyframes tourne { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .chargement::before { animation: none; } }
 @media (max-width: 640px) { .barre { position: static; } .droite { margin-left: 0; } .chiffre .val { font-size: 1.5rem; } }
+/* Accès élèves */
+table.sans-clic tbody tr { cursor: default; }
+table.sans-clic tbody tr:hover td { background: none; }
+.ac-code { display: grid; gap: .35rem; margin-bottom: 1rem; max-width: 640px; }
+.ac-code label { font-weight: 700; }
+.ac-code label small { font-weight: 400; color: var(--doux); }
+.ac-ligne { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+.ac-ligne input, #t-ac-eval select { border: 1.5px solid var(--trait); border-radius: 8px; padding: .4rem .6rem; background: var(--papier); color: var(--encre); font: inherit; max-width: 100%; }
+.ac-ligne input { width: 14rem; }
+.ac-info { color: var(--doux); font-size: .88rem; }
+.ac-message { margin: .6rem 0 0; min-height: 1.3em; font-size: .9rem; }
+.ac-message.ko, .ac-info.ko { color: var(--ko); font-weight: 700; }
+.ac-message.ok, .ac-info.ok { color: var(--ok); font-weight: 700; }
+#t-ac-eval td, #t-ac-eval th { cursor: default; }
+#t-ac-eval th { cursor: default; }
+#t-ac-eval th::after { content: none !important; }
+#t-ac-eval td.actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+#t-ac-eval tr.toutes td { background: var(--fond); }
+#t-ac-eval .bouton { padding: .3rem .7rem; font-size: .88rem; }
+.ac-cibles-bloc { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; margin-bottom: .6rem; }
+.ac-etiquette { font-weight: 700; }
+#ac-cibles .puce { font-family: inherit; color: var(--encre); }
+#ac-cibles .puce[aria-pressed=true] { color: var(--papier); }
+.ac-etat-ligne { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; margin-bottom: .9rem; }
+.ac-badge { font-size: .8rem; font-weight: 700; padding: .1rem .6rem; border-radius: 99px; background: var(--chaud-0); color: var(--doux); }
+.ac-badge.regle { background: var(--ok-doux); color: var(--ok); }
+.ac-badge.modifie { background: var(--alerte-doux); color: var(--alerte); }
+.ac-grille { border: 1px solid var(--trait); border-radius: 10px; overflow: hidden; background: var(--papier); }
+.ac-grille h3 { font-size: 1rem; font-weight: 700; padding: .6rem .8rem; background: var(--fond); display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.ac-grille h3 small { font-weight: 400; color: var(--doux); }
+.ac-grille table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+.ac-grille th { text-align: center; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--doux); padding: .4rem .5rem; border-bottom: 1.5px solid var(--trait); width: 6.5rem; }
+.ac-grille th:first-child { text-align: left; width: auto; }
+.ac-grille td { padding: .4rem .5rem; border-bottom: 1px solid var(--trait); text-align: center; }
+.ac-grille td:first-child { text-align: left; }
+.ac-grille tr:last-child td { border-bottom: 0; }
+.ac-grille td small { display: block; color: var(--doux); }
+.ac-grille input[type=checkbox] { width: 1.25rem; height: 1.25rem; accent-color: var(--accent); cursor: pointer; }
+.ac-grille tr.ferme td:first-child { color: var(--doux); }
+.ac-actions { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; margin-top: 1rem; }
 /* Charte EFI Casablanca : bleu #1C6BB3, bleu foncé #103D66, rouge #C5040F, police Open Sans. */
 .logo-efi { display: block; height: 38px; width: auto; }
 .logo-grand { height: 52px; margin-bottom: .6rem; }
@@ -199,6 +239,7 @@ select#choix-eleve { border: 1.5px solid var(--trait); border-radius: 8px; paddi
       <button class="onglet" role="tab" data-vue="exercices" aria-selected="false">Exercices</button>
       <button class="onglet" role="tab" data-vue="fiche" aria-selected="false">Fiche élève</button>
       <button class="onglet" role="tab" data-vue="evaluation" aria-selected="false">Évaluation</button>
+      <button class="onglet" role="tab" data-vue="acces" aria-selected="false">Accès élèves</button>
     </nav>
   </header>
   <div class="bandeau-demo" id="bandeau-demo" hidden>Données fictives : le site n'est pas encore relié à la Google Sheet. Ce tableau montre à quoi ressembleront vos statistiques.</div>
@@ -316,6 +357,42 @@ select#choix-eleve { border: 1.5px solid var(--trait); border-radius: 8px; paddi
         <p class="sous" id="evd-info"></p>
         <div id="evd-incidents"></div>
         <div class="detail-grille" id="evd-reponses"></div>
+      </div>
+    </section>
+
+    <!-- Accès élèves -->
+    <section class="vue" id="vue-acces" hidden>
+      <div class="panneau">
+        <h2>Évaluations</h2>
+        <p class="sous">Une évaluation ne peut être commencée que dans les classes pour lesquelles elle est ouverte. Fermer ne coupe pas les élèves qui composent déjà : ils peuvent rendre leur copie, mais personne ne peut plus commencer.</p>
+        <div class="ac-code" id="ac-code">
+          <label for="ac-code-saisie">Code de déblocage <small>(que vous tapez sur le poste d'un élève bloqué ; ne le donnez pas aux élèves)</small></label>
+          <div class="ac-ligne">
+            <input id="ac-code-saisie" type="password" autocomplete="off" minlength="4" maxlength="40" placeholder="4 caractères minimum">
+            <button class="bouton" id="ac-code-bouton" type="button">Enregistrer le code</button>
+            <span class="ac-info" id="ac-code-etat" aria-live="polite"></span>
+          </div>
+        </div>
+        <div class="defile"><table class="donnees sans-clic" id="t-ac-eval"></table></div>
+        <p class="ac-message" id="ac-msg-eval" role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="panneau">
+        <h2>Contenus ouverts aux élèves</h2>
+        <p class="sous">Cochez ce que les élèves peuvent faire pour le moment. Une notion décochée apparaît verrouillée chez eux et leurs essais n'y sont pas enregistrés. Ce réglage organise le travail de la classe : les pages restent publiques sur Internet, ce n'est pas un contrôle d'accès.</p>
+        <div class="ac-cibles-bloc">
+          <span class="ac-etiquette" id="ac-etiquette-cibles">Classes concernées</span>
+          <div class="filtres" id="ac-cibles" role="group" aria-labelledby="ac-etiquette-cibles"></div>
+        </div>
+        <div class="ac-etat-ligne"><span class="ac-badge" id="ac-badge"></span><span class="ac-info" id="ac-detail"></span></div>
+        <div class="grille-2" id="ac-grilles"></div>
+        <div class="ac-actions">
+          <button class="bouton plein" id="ac-enregistrer" type="button">Enregistrer</button>
+          <button class="bouton" id="ac-tout-ouvrir" type="button">Tout cocher</button>
+          <button class="bouton" id="ac-tout-fermer" type="button">Tout décocher</button>
+          <button class="bouton discret" id="ac-reinit" type="button">Revenir à « tout est ouvert »</button>
+          <span class="ac-info" id="ac-msg" role="status" aria-live="polite"></span>
+        </div>
       </div>
     </section>
   </main>
@@ -441,6 +518,7 @@ async function charger() {
     $("maj").textContent = "Mis à jour à " + new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
     dessinerFiltres();
     toutDessiner();
+    if (!$("vue-acces").hidden) chargerEtatProf();
   } catch (e) {
     $("maj").textContent = "Chargement impossible. Vérifiez la connexion, puis « Actualiser ».";
   }
@@ -961,7 +1039,7 @@ function dessinerEvaluation(liste) {
   pastille.className = "ev-ouverte" + (classesOuvertes.length ? "" : " ev-fermee");
   pastille.textContent = classesOuvertes.length ? "Ouverte pour " + classesOuvertes.join(", ") : "Fermée";
   $("ev-titre").appendChild(pastille);
-  $("ev-info").textContent = `${meta.duree} min · ${meta.nb} questions · sur ${meta.total} points. Ouvrir ou fermer : menu « Python classe » de la Google Sheet.`;
+  $("ev-info").textContent = `${meta.duree} min · ${meta.nb} questions · sur ${meta.total} points. Ouvrir ou fermer : onglet « Accès élèves ».`;
 
   const etats = etatsEvaluation(liste, meta.id);
   const rendues = etats.filter(x => x.rendu);
@@ -1052,10 +1130,283 @@ $("b-csv-eval").addEventListener("click", () => {
   document.body.appendChild(a); a.click(); a.remove();
 });
 
+/* ---------------- Accès élèves : contenus ouverts et évaluations ---------------- */
+let ETAT_PROF = null;            // réponse du script : acces, ouvertes, classes, evaluations, nbNotions, codeDeblocageDefini
+const CIBLES = new Set();        // classes concernées par le réglage des contenus
+let BROUILLON = null;            // { python: { c: Set, e: Set }, algo: { c: Set, e: Set } }
+let BROUILLON_SALE = false;
+const CHOIX_EVAL = {};           // évaluation choisie dans chaque liste déroulante ("*" = ligne « toutes les classes »)
+let CONFIRMATION = null;         // identifiant du bouton qui attend une confirmation
+const PARCOURS_ACCES = ["python", "algo"];
+const ERREURS_PROF = {
+  code_deblocage_manquant: "Définissez d'abord le code de déblocage.",
+  classe_inconnue: "Classe inconnue : actualisez la page.",
+  mot_de_passe: "Session expirée : reconnectez-vous.",
+  trop_d_essais: "Trop d'essais ratés : attendez quelques minutes.",
+  acces_invalide: "Réglage refusé par le script.",
+  evaluation_inconnue: "Cette évaluation n'existe pas dans le script : mettez-le à jour.",
+  code_trop_court: "4 caractères minimum.",
+  "action inconnue": "Le script Google n'est pas à jour : collez la nouvelle version de Code.gs et redéployez-la (Déployer > Gérer les déploiements > nouvelle version)."
+};
+const texteErreurProf = e => ERREURS_PROF[e] || "Le script a répondu : " + e;
+
+/* Sans serveur (démonstration), les réglages vivent en mémoire pour que l'écran reste manipulable. */
+const DEMO_PROF = { acces: {}, ouvertes: { "2nde A": "eval1" }, code: true };
+function demoProf(c) {
+  if (c.action === "profAcces") c.classes.forEach(cl => { if (c.acces === null) delete DEMO_PROF.acces[cl]; else DEMO_PROF.acces[cl] = c.acces; });
+  else if (c.action === "profEval") c.classes.forEach(cl => { if (c.op === "ouvrir") DEMO_PROF.ouvertes[cl] = c.evaluation; else delete DEMO_PROF.ouvertes[cl]; });
+  else if (c.action === "profCodeDeblocage") DEMO_PROF.code = true;
+  return { ok: true, acces: DEMO_PROF.acces, ouvertes: DEMO_PROF.ouvertes, classes: [...new Set(BRUT.eleves.map(e => e.classe))].sort(),
+    evaluations: LISTE_EVALS.map(e => e.id), codeDeblocageDefini: DEMO_PROF.code };
+}
+async function appelProf(corps) {
+  if (DEMO) return demoProf(corps);
+  const r = await postServeur({ ...corps, cle: CLE });
+  return r.json();
+}
+function dire(id, texte, etat) {
+  const el = $(id);
+  el.textContent = texte || "";
+  el.classList.toggle("ok", etat === "ok");
+  el.classList.toggle("ko", etat === "ko");
+}
+const heureCourte = () => new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+const nbNotionsDe = p => LES_PARCOURS[p].liste.length;
+const titreEval = id => { const e = LISTE_EVALS.find(x => x.id === id); return e ? e.titre : id; };
+const effectifClasse = cl => BRUT ? BRUT.eleves.filter(e => e.classe === cl).length : 0;
+
+async function chargerEtatProf() {
+  if (!CLE || (DEMO && !BRUT)) return;
+  try {
+    const d = await appelProf({ action: "profEtat" });
+    if (!d.ok) throw new Error(d.erreur);
+    ETAT_PROF = d;
+    if (BRUT && BRUT.evaluations) BRUT.evaluations.ouvertes = d.ouvertes;
+  } catch (e) {
+    dire("ac-msg-eval", ETAT_PROF ? "" : e instanceof Error && !(e instanceof TypeError) && !(e instanceof SyntaxError) ? texteErreurProf(e.message) : "Le script ne répond pas. Vérifiez la connexion, puis ouvrez de nouveau cet onglet.", "ko");
+    if (!ETAT_PROF) return;
+  }
+  dessinerAccesEval();
+  dessinerAccesContenus();
+}
+
+/* ----- Évaluations ----- */
+function confirmer(id, bouton, libelle, action) {
+  if (CONFIRMATION === id) { CONFIRMATION = null; action(); return; }
+  CONFIRMATION = id;
+  bouton.textContent = "Confirmer ?";
+  setTimeout(() => { if (CONFIRMATION === id) { CONFIRMATION = null; bouton.textContent = libelle; } }, 4000);
+}
+async function actionEval(op, classes, evaluation) {
+  dire("ac-msg-eval", "Enregistrement…");
+  try {
+    const d = await appelProf({ action: "profEval", op, classes, evaluation });
+    if (!d.ok) { dire("ac-msg-eval", texteErreurProf(d.erreur), "ko"); return; }
+    ETAT_PROF = d;
+    if (op === "ouvrir") EVAL_CHOISIE = evaluation;
+    if (BRUT && BRUT.evaluations) { BRUT.evaluations.ouvertes = d.ouvertes; dessinerEvaluation(calculer()); }
+    dessinerAccesEval();
+    const qui = classes.length === ETAT_PROF.classes.length && classes.length > 1 ? "toutes les classes" : classes.join(", ");
+    dire("ac-msg-eval", op === "ouvrir" ? `« ${titreEval(evaluation)} » est ouverte pour : ${qui}. (${heureCourte()})` : `Évaluation fermée pour : ${qui}. (${heureCourte()})`, "ok");
+  } catch { dire("ac-msg-eval", "Le script ne répond pas. Vérifiez la connexion, puis réessayez.", "ko"); }
+}
+function dessinerAccesEval() {
+  const t = $("t-ac-eval");
+  t.replaceChildren();
+  if (!ETAT_PROF) return;
+  const evals = LISTE_EVALS.filter(e => ETAT_PROF.evaluations.includes(e.id));
+  const code = ETAT_PROF.codeDeblocageDefini;
+  $("ac-code-etat").textContent = code ? "Un code est enregistré." : "Aucun code : on ne peut pas ouvrir d'évaluation tant qu'il n'est pas défini.";
+  $("ac-code-etat").classList.toggle("ko", !code);
+  const ouvertes = ETAT_PROF.ouvertes || {};
+  const entete = t.createTHead().insertRow();
+  ["Classe", "État", "Évaluation", ""].forEach(x => { const th = document.createElement("th"); th.textContent = x; entete.appendChild(th); });
+  const corps = t.createTBody();
+  const ligne = (cle, nom, sous, classes, ouverteId) => {
+    const tr = corps.insertRow();
+    if (cle === "*") tr.className = "toutes";
+    const c1 = tr.insertCell(); c1.className = "nom"; c1.textContent = nom;
+    if (sous) { const sm = document.createElement("small"); sm.textContent = sous; c1.appendChild(sm); }
+    const c2 = tr.insertCell();
+    const pastille = document.createElement("span");
+    const ouvrables = classes.filter(cl => ouvertes[cl]);
+    pastille.className = "ev-ouverte" + (ouvrables.length ? "" : " ev-fermee");
+    if (cle === "*") pastille.textContent = ouvrables.length ? `Ouverte pour ${ouvrables.length} classe${ouvrables.length > 1 ? "s" : ""} sur ${classes.length}` : "Fermée partout";
+    else pastille.textContent = ouverteId ? "Ouverte : " + titreEval(ouverteId) : "Fermée";
+    pastille.style.marginLeft = "0";
+    c2.appendChild(pastille);
+    const c3 = tr.insertCell();
+    const sel = document.createElement("select");
+    sel.setAttribute("aria-label", "Évaluation à ouvrir pour " + nom);
+    evals.forEach(e => { const o = document.createElement("option"); o.value = e.id; o.textContent = e.titre; sel.appendChild(o); });
+    sel.value = CHOIX_EVAL[cle] || ouverteId || (evals[0] && evals[0].id) || "";
+    sel.addEventListener("change", () => { CHOIX_EVAL[cle] = sel.value; });
+    c3.appendChild(sel);
+    const c4 = tr.insertCell(); c4.className = "actions";
+    const bo = document.createElement("button"); bo.type = "button"; bo.className = "bouton plein"; bo.textContent = "Ouvrir";
+    bo.disabled = !code || !evals.length;
+    bo.title = code ? "" : "Définissez d'abord le code de déblocage";
+    bo.addEventListener("click", () => { CHOIX_EVAL[cle] = sel.value; actionEval("ouvrir", classes, sel.value); });
+    const bf = document.createElement("button"); bf.type = "button"; bf.className = "bouton"; bf.textContent = cle === "*" ? "Tout fermer" : "Fermer";
+    bf.disabled = !ouvrables.length;
+    bf.addEventListener("click", () => confirmer("fermer:" + cle, bf, cle === "*" ? "Tout fermer" : "Fermer", () => actionEval("fermer", classes, "")));
+    c4.append(bo, bf);
+  };
+  const classes = ETAT_PROF.classes;
+  if (classes.length > 1) ligne("*", "Toutes les classes", `${BRUT ? BRUT.eleves.length : 0} élève${BRUT && BRUT.eleves.length > 1 ? "s" : ""}`, classes, null);
+  classes.forEach(cl => ligne(cl, cl, `${effectifClasse(cl)} élève${effectifClasse(cl) > 1 ? "s" : ""}`, [cl], ouvertes[cl] || null));
+  if (!classes.length) { const tr = corps.insertRow(); const td = tr.insertCell(); td.colSpan = 4; td.className = "vide"; td.textContent = "Aucune classe : la feuille « Eleves » est vide."; }
+}
+$("ac-code-bouton").addEventListener("click", async () => {
+  const code = $("ac-code-saisie").value.trim();
+  if (code.length < 4) { dire("ac-code-etat", "4 caractères minimum.", "ko"); return; }
+  dire("ac-code-etat", "Enregistrement…");
+  try {
+    const d = await appelProf({ action: "profCodeDeblocage", code });
+    if (!d.ok) { dire("ac-code-etat", texteErreurProf(d.erreur), "ko"); return; }
+    ETAT_PROF = d;
+    $("ac-code-saisie").value = "";
+    dessinerAccesEval();
+    dire("ac-code-etat", `Code enregistré (${heureCourte()}).`, "ok");
+  } catch { dire("ac-code-etat", "Le script ne répond pas.", "ko"); }
+});
+
+/* ----- Contenus (notions) ----- */
+const toutesNotions = p => new Set(Array.from({ length: nbNotionsDe(p) }, (_, i) => i + 1));
+function reglageDe(cl) { const a = ETAT_PROF.acces || {}; return a[cl] || a["*"] || null; }
+function brouillonDepuis(cfg) {
+  const b = {};
+  PARCOURS_ACCES.forEach(p => {
+    b[p] = cfg && cfg[p] ? { c: new Set(cfg[p].c), e: new Set(cfg[p].e) } : { c: toutesNotions(p), e: toutesNotions(p) };
+  });
+  return b;
+}
+const serialiser = b => Object.fromEntries(PARCOURS_ACCES.map(p => [p, { c: [...b[p].c].sort((x, y) => x - y), e: [...b[p].e].sort((x, y) => x - y) }]));
+function cibleEffective() {
+  const cl = [...CIBLES].filter(c => ETAT_PROF.classes.includes(c));
+  return cl.length && cl.length === ETAT_PROF.classes.length ? [...cl, "*"] : cl;
+}
+function dessinerAccesContenus() {
+  if (!ETAT_PROF) return;
+  const classes = ETAT_PROF.classes;
+  [...CIBLES].forEach(c => { if (!classes.includes(c)) CIBLES.delete(c); });
+  if (!CIBLES.size && classes.length) CIBLES.add(classes[0]);
+  const zone = $("ac-cibles");
+  zone.replaceChildren();
+  const puce = (texte, active, clic) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "puce"; b.textContent = texte;
+    b.setAttribute("aria-pressed", String(active)); b.addEventListener("click", clic); zone.appendChild(b);
+  };
+  if (classes.length > 1) puce("Toutes les classes", classes.every(c => CIBLES.has(c)), () => {
+    if (classes.every(c => CIBLES.has(c))) { CIBLES.clear(); CIBLES.add(classes[0]); } else classes.forEach(c => CIBLES.add(c));
+    ciblesChangees();
+  });
+  classes.forEach(cl => puce(cl, CIBLES.has(cl), () => {
+    if (CIBLES.has(cl) && CIBLES.size > 1) CIBLES.delete(cl); else CIBLES.add(cl);
+    ciblesChangees();
+  }));
+  if (!BROUILLON_SALE) { const premiere = classes.find(c => CIBLES.has(c)); BROUILLON = brouillonDepuis(premiere ? reglageDe(premiere) : null); }
+  dessinerGrilles();
+}
+function ciblesChangees() { dessinerAccesContenus(); }
+function dessinerGrilles() {
+  const zone = $("ac-grilles");
+  zone.replaceChildren();
+  PARCOURS_ACCES.forEach(p => {
+    const liste = LES_PARCOURS[p].liste, n = nbNotionsDe(p);
+    if (!liste.length) return;
+    const bloc = document.createElement("div"); bloc.className = "ac-grille"; bloc.dataset.parcours = p;
+    const h = document.createElement("h3"); h.innerHTML = "<span></span><small></small>";
+    h.querySelector("span").textContent = LES_PARCOURS[p].nom;
+    bloc.appendChild(h);
+    const tab = document.createElement("table");
+    const hr = tab.createTHead().insertRow();
+    const th0 = document.createElement("th"); th0.textContent = "Notion"; hr.appendChild(th0);
+    [["c", "Cours"], ["e", "Exercices"]].forEach(([type, nom]) => {
+      const th = document.createElement("th");
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.id = `ac-${p}-${type}-tous`; cb.setAttribute("aria-label", `${nom} : tout cocher ou décocher (${LES_PARCOURS[p].nom})`);
+      cb.addEventListener("change", () => {
+        for (let k = 1; k <= n; k++) { if (cb.checked) BROUILLON[p][type].add(k); else BROUILLON[p][type].delete(k); }
+        BROUILLON_SALE = true; majGrilles();
+      });
+      const lab = document.createElement("label"); lab.htmlFor = cb.id; lab.append(nom, document.createElement("br"), cb);
+      th.appendChild(lab); hr.appendChild(th);
+    });
+    const corps = tab.createTBody();
+    liste.forEach((m, i) => {
+      const k = i + 1, tr = corps.insertRow(); tr.dataset.notion = k;
+      const c0 = tr.insertCell(); c0.textContent = `${k}. ${m.titre}`;
+      const sm = document.createElement("small"); sm.textContent = `${m.exercices.length} exercices`; c0.appendChild(sm);
+      ["c", "e"].forEach(type => {
+        const td = tr.insertCell();
+        const cb = document.createElement("input"); cb.type = "checkbox"; cb.id = `ac-${p}-${type}-${k}`;
+        cb.setAttribute("aria-label", `${type === "c" ? "Cours" : "Exercices"} de la notion ${k} : ${m.titre}`);
+        cb.addEventListener("change", () => { if (cb.checked) BROUILLON[p][type].add(k); else BROUILLON[p][type].delete(k); BROUILLON_SALE = true; majGrilles(); });
+        td.appendChild(cb);
+      });
+    });
+    bloc.appendChild(tab);
+    zone.appendChild(bloc);
+  });
+  majGrilles();
+}
+/* Met à jour cases, compteurs et messages sans reconstruire la grille (le focus reste en place). */
+function majGrilles() {
+  PARCOURS_ACCES.forEach(p => {
+    const bloc = document.querySelector(`.ac-grille[data-parcours="${p}"]`);
+    if (!bloc) return;
+    const n = LES_PARCOURS[p].liste.length;
+    ["c", "e"].forEach(type => {
+      let nb = 0;
+      for (let k = 1; k <= n; k++) {
+        const cb = $(`ac-${p}-${type}-${k}`), coche = BROUILLON[p][type].has(k);
+        if (cb) cb.checked = coche;
+        if (coche) nb++;
+      }
+      const tous = $(`ac-${p}-${type}-tous`);
+      if (tous) { tous.checked = nb === n; tous.indeterminate = nb > 0 && nb < n; }
+    });
+    bloc.querySelectorAll("tbody tr").forEach(tr => { tr.classList.toggle("ferme", !BROUILLON[p].e.has(Number(tr.dataset.notion)) && !BROUILLON[p].c.has(Number(tr.dataset.notion))); });
+    bloc.querySelector("h3 small").textContent = `${BROUILLON[p].c.size} cours · ${BROUILLON[p].e.size} exercices ouverts sur ${n}`;
+  });
+  const classes = ETAT_PROF.classes.filter(c => CIBLES.has(c));
+  const regles = classes.map(c => reglageDe(c));
+  const differents = new Set(regles.map(r => JSON.stringify(r))).size > 1;
+  const badge = $("ac-badge");
+  if (BROUILLON_SALE) { badge.textContent = "Modifications non enregistrées"; badge.className = "ac-badge modifie"; }
+  else if (regles.some(r => r)) { badge.textContent = "Réglage enregistré"; badge.className = "ac-badge regle"; }
+  else { badge.textContent = "Aucun réglage : tout est ouvert"; badge.className = "ac-badge"; }
+  $("ac-detail").textContent = differents
+    ? `Ces classes n'ont pas le même réglage : enregistrer les alignera sur celui affiché (celui de la ${classes[0]}).`
+    : BROUILLON_SALE ? "Les élèves verront le changement quand ils rechargent la page ou se reconnectent." : "";
+}
+async function enregistrerAcces(acces) {
+  const cibles = cibleEffective();
+  if (!cibles.length) { dire("ac-msg", "Choisissez au moins une classe.", "ko"); return; }
+  dire("ac-msg", "Enregistrement…");
+  $("ac-enregistrer").disabled = true;
+  try {
+    const d = await appelProf({ action: "profAcces", classes: cibles, acces });
+    if (!d.ok) { dire("ac-msg", texteErreurProf(d.erreur), "ko"); return; }
+    ETAT_PROF = d;
+    BROUILLON_SALE = false;
+    const premiere = d.classes.find(c => CIBLES.has(c));
+    BROUILLON = brouillonDepuis(premiere ? reglageDe(premiere) : null);
+    dessinerAccesContenus();
+    dire("ac-msg", `Enregistré pour : ${cibles.filter(c => c !== "*").join(", ")} (${heureCourte()}).`, "ok");
+  } catch { dire("ac-msg", "Le script ne répond pas. Vérifiez la connexion, puis réessayez.", "ko"); }
+  finally { $("ac-enregistrer").disabled = false; }
+}
+$("ac-enregistrer").addEventListener("click", () => { if (BROUILLON) enregistrerAcces(serialiser(BROUILLON)); });
+$("ac-tout-ouvrir").addEventListener("click", () => { if (!BROUILLON) return; PARCOURS_ACCES.forEach(p => { BROUILLON[p] = { c: toutesNotions(p), e: toutesNotions(p) }; }); BROUILLON_SALE = true; majGrilles(); });
+$("ac-tout-fermer").addEventListener("click", () => { if (!BROUILLON) return; PARCOURS_ACCES.forEach(p => { BROUILLON[p] = { c: new Set(), e: new Set() }; }); BROUILLON_SALE = true; majGrilles(); });
+$("ac-reinit").addEventListener("click", () => confirmer("reinit", $("ac-reinit"), "Revenir à « tout est ouvert »", () => { enregistrerAcces(null); }));
+
 /* ---------------- Onglets ---------------- */
 function montrerVue(v) {
   document.querySelectorAll(".onglet").forEach(o => { o.setAttribute("aria-selected", String(o.dataset.vue === v)); if (o.dataset.vue === v) o.scrollIntoView({ block: "nearest", inline: "nearest" }); });
-  ["ensemble", "eleves", "exercices", "fiche", "evaluation"].forEach(x => $("vue-" + x).hidden = x !== v);
+  ["ensemble", "eleves", "exercices", "fiche", "evaluation", "acces"].forEach(x => $("vue-" + x).hidden = x !== v);
+  if (v === "acces") chargerEtatProf();
   Object.values(graphes).forEach(g => g.resize());
 }
 document.querySelectorAll(".onglet").forEach(o => o.addEventListener("click", () => montrerVue(o.dataset.vue)));
