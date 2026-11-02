@@ -4,30 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="favicon-efi.png">
+<meta name="theme-color" content="#1C6BB3">
 <title>Suivi Python</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
 /* Mise en page : barre de filtres, onglets, puis résumé chiffré avant le détail. */
 :root {
-  --fond: #eef3f2; --papier: #ffffff; --encre: #13232b; --doux: #56686f; --trait: #d3dfe0;
-  --accent: #0d6a6a; --accent-fort: #0a5252; --surligne: #f2c230; --surligne-doux: #fbf0c8;
+  --fond: #f0f5fa; --papier: #ffffff; --encre: #14263a; --doux: #58697b; --trait: #d3dfeb;
+  --accent: #1C6BB3; --rouge: #C5040F; --accent-fort: #103D66; --surligne: #f2c230; --surligne-doux: #fbf0c8;
   --ok: #1d8049; --ok-doux: #dcf1e4; --ko: #b93d2a; --ko-doux: #f8e1dc; --alerte: #a86a00; --alerte-doux: #fbecc9;
-  --serie-1: #0d6a6a; --serie-2: #c46a1a; --serie-3: #5b5bb5; --serie-4: #8a8f2a;
-  --chaud-0: #e9efee; --chaud-1: #cfe5e2; --chaud-2: #96cbc6; --chaud-3: #4aa59e; --chaud-4: #0d6a6a;
-  --f-titre: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --f-texte: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --serie-1: #1C6BB3; --serie-2: #c46a1a; --serie-3: #5b5bb5; --serie-4: #8a8f2a;
+  --chaud-0: #e9f1f8; --chaud-1: #cfe2f3; --chaud-2: #94bfe4; --chaud-3: #4b8fcb; --chaud-4: #1C6BB3;
+  --f-titre: "Open Sans", "Segoe UI", system-ui, sans-serif;
+  --f-texte: "Open Sans", "Segoe UI", system-ui, sans-serif;
   --f-code: "JetBrains Mono", ui-monospace, Consolas, monospace;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --fond: #0e171a; --papier: #152126; --encre: #e3ecec; --doux: #93a5aa; --trait: #2a3b41;
-    --accent: #4db3ab; --accent-fort: #7ccbc4; --surligne: #f0c645; --surligne-doux: #3b3420;
+    --fond: #0b1622; --papier: #12212f; --encre: #e4ecf4; --doux: #93a8bc; --trait: #263a4d;
+    --accent: #5aa9e6; --rouge: #ef6a72; --accent-fort: #8cc3f0; --surligne: #f0c645; --surligne-doux: #3b3420;
     --ok: #52c483; --ok-doux: #173326; --ko: #f07b63; --ko-doux: #3a211c; --alerte: #f0b950; --alerte-doux: #3a2e14;
-    --serie-1: #4db3ab; --serie-2: #f09a50; --serie-3: #9d9cf0; --serie-4: #c4c95a;
-    --chaud-0: #1b292e; --chaud-1: #1d3f3e; --chaud-2: #22625f; --chaud-3: #2f8d86; --chaud-4: #59c2b9;
+    --serie-1: #5aa9e6; --serie-2: #f09a50; --serie-3: #9d9cf0; --serie-4: #c4c95a;
+    --chaud-0: #172635; --chaud-1: #1b3a57; --chaud-2: #225783; --chaud-3: #3079b8; --chaud-4: #5aa9e6;
     color-scheme: dark;
   }
 }
@@ -154,6 +156,11 @@ select#choix-eleve { border: 1.5px solid var(--trait); border-radius: 8px; paddi
 @keyframes tourne { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .chargement::before { animation: none; } }
 @media (max-width: 640px) { .barre { position: static; } .droite { margin-left: 0; } .chiffre .val { font-size: 1.5rem; } }
+/* Charte EFI Casablanca : bleu #1C6BB3, bleu foncé #103D66, rouge #C5040F, police Open Sans. */
+.logo-efi { display: block; height: 34px; width: auto; }
+.logo-grand { height: 52px; margin-bottom: .6rem; }
+.barre { border-top: 4px solid var(--rouge); }
+@media (prefers-color-scheme: dark) { .logo-efi { background: #fff; border-radius: 8px; padding: 3px 8px; box-sizing: content-box; } }
 </style>
 </head>
 <body>
@@ -174,6 +181,7 @@ select#choix-eleve { border: 1.5px solid var(--trait); border-radius: 8px; paddi
 <div id="tableau" hidden>
   <header class="barre">
     <div class="barre-haut">
+      <img class="logo-efi" src="logo-efi.webp" alt="EFI Casablanca" width="100" height="34">
       <h1>Suivi <span>Python</span></h1>
       <div class="filtres" id="choix-parcours" role="group" aria-label="Parcours">
         <button type="button" class="puce" data-parcours="python" aria-pressed="true">Python</button>

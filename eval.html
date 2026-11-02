@@ -4,19 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="favicon-efi.png">
+<meta name="theme-color" content="#1C6BB3">
 <title>Évaluation Python</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 <style>
 /* Mise en page : écran de connexion, consignes, puis épreuve plein écran (questions à gauche, question à droite). */
 :root {
-  --fond: #eef1f4; --papier: #ffffff; --encre: #16202c; --doux: #596779; --trait: #d3dae3;
-  --accent: #2b4c8c; --accent-fort: #1f3a6e; --surligne: #f2c230; --surligne-doux: #fbf0c8;
+  --fond: #f0f5fa; --papier: #ffffff; --encre: #16202c; --doux: #596779; --trait: #d3dae3;
+  --accent: #1C6BB3; --rouge: #C5040F; --accent-fort: #103D66; --surligne: #f2c230; --surligne-doux: #fbf0c8;
   --ok: #1d8049; --ok-doux: #dcf1e4; --ko: #b93d2a; --ko-doux: #f8e1dc; --code-fond: #f7f9fb;
-  --f-titre: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --f-texte: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-titre: "Open Sans", "Segoe UI", system-ui, sans-serif;
+  --f-texte: "Open Sans", "Segoe UI", system-ui, sans-serif;
   --f-code: "JetBrains Mono", ui-monospace, Consolas, monospace;
   color-scheme: light;
 }
@@ -84,7 +86,7 @@ pre.programme { font-size: 1rem; line-height: 1.6; }
 .schema { max-width: 100%; height: auto; }
 .schema text { font: 14px var(--f-texte); dominant-baseline: central; text-anchor: middle; fill: var(--encre); }
 .schema .sch-etiquette { font-size: 12px; font-weight: 700; fill: var(--doux); dominant-baseline: auto; }
-.sch-debut, .sch-fin { fill: #dcefe9; stroke: #0d6a6a; stroke-width: 1.5; }
+.sch-debut, .sch-fin { fill: #dcebf7; stroke: #1C6BB3; stroke-width: 1.5; }
 .sch-action { fill: var(--papier); stroke: var(--encre); stroke-width: 1.5; }
 .sch-es { fill: var(--surligne-doux); stroke: #a86a00; stroke-width: 1.5; }
 .sch-si { fill: #e8eef9; stroke: var(--accent); stroke-width: 1.5; }
@@ -150,6 +152,11 @@ pre.programme { font-size: 1rem; line-height: 1.6; }
   #liste { grid-auto-flow: column; grid-auto-columns: max-content; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--trait); padding: .6rem 16px; }
   #liste .bouton { margin-top: 0; }
 }
+/* Charte EFI Casablanca : bleu #1C6BB3, bleu foncé #103D66, rouge #C5040F, police Open Sans. */
+.logo-efi { display: block; height: 34px; width: auto; }
+.logo-grand { height: 60px; margin-bottom: .6rem; }
+.barre { border-top: 4px solid var(--rouge); }
+@media (prefers-color-scheme: dark) { .logo-efi { background: #fff; border-radius: 8px; padding: 3px 8px; box-sizing: content-box; } }
 </style>
 </head>
 <body>
@@ -157,6 +164,7 @@ pre.programme { font-size: 1rem; line-height: 1.6; }
 <!-- Connexion -->
 <section id="ecran-connexion" class="centre">
   <form class="carte" id="form-connexion" autocomplete="off">
+    <img class="logo-efi logo-grand" src="logo-efi.webp" alt="EFI Casablanca" width="176" height="60">
     <p class="surtitre" id="etablissement"></p>
     <h1>Évaluation Python</h1>
     <p class="doux">Connecte-toi avec ton identifiant et ton code habituels.</p>

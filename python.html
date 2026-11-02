@@ -3,28 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/png" href="favicon-efi.png">
+<meta name="theme-color" content="#1C6BB3">
 <title>Python en seconde</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 <style>
 /* Mise en page : barre du haut, parcours à gauche, exercice à droite ; le parcours passe en bandeau sur téléphone. */
 :root {
-  --fond: #eef3f2; --papier: #ffffff; --encre: #13232b; --doux: #56686f; --trait: #d3dfe0;
-  --accent: #0d6a6a; --accent-fort: #0a5252; --surligne: #f2c230; --surligne-doux: #fbf0c8;
-  --ok: #1d8049; --ok-doux: #dcf1e4; --ko: #b93d2a; --ko-doux: #f8e1dc; --code-fond: #f7faf9;
-  --f-titre: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --f-texte: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --fond: #f0f5fa; --papier: #ffffff; --encre: #14263a; --doux: #58697b; --trait: #d3dfeb;
+  --accent: #1C6BB3; --rouge: #C5040F; --accent-fort: #103D66; --surligne: #f2c230; --surligne-doux: #fbf0c8;
+  --ok: #1d8049; --ok-doux: #dcf1e4; --ko: #b93d2a; --ko-doux: #f8e1dc; --code-fond: #f6f9fc;
+  --f-titre: "Open Sans", "Segoe UI", system-ui, sans-serif;
+  --f-texte: "Open Sans", "Segoe UI", system-ui, sans-serif;
   --f-code: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
   --rayon: 10px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --fond: #0e171a; --papier: #152126; --encre: #e3ecec; --doux: #93a5aa; --trait: #2a3b41;
-    --accent: #4db3ab; --accent-fort: #7ccbc4; --surligne: #f0c645; --surligne-doux: #3b3420;
-    --ok: #52c483; --ok-doux: #173326; --ko: #f07b63; --ko-doux: #3a211c; --code-fond: #111b1f;
+    --fond: #0b1622; --papier: #12212f; --encre: #e4ecf4; --doux: #93a8bc; --trait: #263a4d;
+    --accent: #5aa9e6; --rouge: #ef6a72; --accent-fort: #8cc3f0; --surligne: #f0c645; --surligne-doux: #3b3420;
+    --ok: #52c483; --ok-doux: #173326; --ko: #f07b63; --ko-doux: #3a211c; --code-fond: #0f1c29;
     color-scheme: dark;
   }
 }
@@ -50,7 +52,7 @@ kbd { font-family: var(--f-code); font-size: .75em; border: 1px solid currentCol
 #ecran-connexion { min-height: 100%; display: grid; place-items: center; padding: 2rem 16px; }
 .carte-connexion { width: min(420px, 100%); background: var(--papier); border: 1px solid var(--trait); border-radius: 16px; padding: 2rem 1.75rem; display: grid; gap: 1.1rem; }
 .carte-connexion h1 { font-size: 2rem; font-weight: 800; }
-.carte-connexion h1 span { background: linear-gradient(transparent 60%, var(--surligne) 60%); padding-inline: .1em; }
+.carte-connexion h1 span { background: linear-gradient(transparent 82%, var(--rouge) 82%); padding-inline: .1em; }
 .carte-connexion p { margin: 0; color: var(--doux); }
 .champ { display: grid; gap: .3rem; }
 .champ label { font-weight: 700; font-size: .95rem; }
@@ -197,6 +199,11 @@ details.cours summary::-webkit-details-marker { display: none; }
   #exo { overflow: visible; }
   .eleve { margin-left: 0; }
 }
+/* Charte EFI Casablanca : bleu #1C6BB3, bleu foncé #103D66, rouge #C5040F, police Open Sans. */
+.logo-efi { display: block; height: 34px; width: auto; }
+.logo-grand { height: 60px; margin-bottom: .6rem; }
+.barre { border-top: 4px solid var(--rouge); }
+@media (prefers-color-scheme: dark) { .logo-efi { background: #fff; border-radius: 8px; padding: 3px 8px; box-sizing: content-box; } }
 </style>
 </head>
 <body>
@@ -204,6 +211,7 @@ details.cours summary::-webkit-details-marker { display: none; }
 <section id="ecran-connexion">
   <form class="carte-connexion" id="form-connexion" autocomplete="off">
     <div>
+      <img class="logo-efi logo-grand" src="logo-efi.webp" alt="EFI Casablanca" width="176" height="60">
       <p class="surtitre" id="etablissement"></p>
       <h1>Apprendre <span>Python</span></h1>
     </div>
@@ -226,6 +234,7 @@ details.cours summary::-webkit-details-marker { display: none; }
 
 <div id="app" hidden>
   <header class="barre">
+    <img class="logo-efi" src="logo-efi.webp" alt="EFI Casablanca" width="100" height="34">
     <div class="marque" id="marque">Python <span>en seconde</span></div>
     <nav class="onglets-haut" aria-label="Navigation"><a href="index.html">← Accueil</a><a href="cours.html#python">📖 Cours Python</a></nav>
     <div class="jauge" title="Exercices réussis">
