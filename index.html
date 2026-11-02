@@ -201,7 +201,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 1.8rem 16px 4rem; display: gr
 </div>
 
 <script src="config.js?v=20261102a"></script>
-<script src="ms.js?v=20261102a"></script>
+<script src="ms.js?v=20261102b"></script>
 <script src="exercices.js?v=20261014d"></script>
 <script src="algorigrammes.js?v=20261014d"></script>
 <script src="evaluations.js?v=20261014d"></script>
@@ -288,6 +288,20 @@ $("b-deconnexion").addEventListener("click", () => deconnecter());
 
 function montrerErreur(texte) { $("erreur-connexion").textContent = texte; $("erreur-connexion").hidden = false; }
 
+function allerProf(erreur) {
+  try { if (erreur) sessionStorage.setItem("ms:erreurProf", erreur); } catch {}
+  location.replace("prof.html");
+}
+async function finConnexionProf(r) {
+  if (r.erreur) { allerProf(MS.messageErreur(r.erreur)); return; }
+  try {
+    const d = await appelServeur({ action: "connexionProfMs", idToken: r.idToken, nonce: r.nonce });
+    if (!d.ok) { allerProf(MS.messageErreur(d.erreur)); return; }
+    try { sessionStorage.setItem("pyclasse:cle", d.cle); } catch {}
+    allerProf();
+  } catch { allerProf(MS.messageErreur("reseau")); }
+}
+
 /* Connexion Microsoft : bouton, et traitement du retour de Microsoft (code dans l'adresse).
  * Renvoie "ok" (élève connecté), "erreur" (message affiché) ou null (rien de Microsoft à faire). */
 async function initMicrosoft() {
@@ -301,6 +315,8 @@ async function initMicrosoft() {
   });
   const r = await MS.traiterRetour();
   if (!r) return null;
+  // Connexion lancée depuis le tableau de bord enseignant : on vérifie, puis on y retourne.
+  if (r.role === "prof") { await finConnexionProf(r); return "ok"; }
   if (r.erreur) { montrerErreur(MS.messageErreur(r.erreur)); return "erreur"; }
   b.disabled = true; b.textContent = "Connexion…";
   try {

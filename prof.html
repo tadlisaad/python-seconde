@@ -162,6 +162,8 @@ select#choix-eleve { border: 1.5px solid var(--trait); border-radius: 8px; paddi
   <form class="carte-cle" id="form-cle">
     <h1>Suivi <span style="color:var(--accent)">Python</span></h1>
     <p>Tableau de bord enseignant. Saisissez le mot de passe défini dans la Google Sheet (menu « Python classe »).</p>
+    <button class="bouton plein" type="button" id="b-microsoft" hidden>Se connecter avec Microsoft</button>
+    <p id="ou-ms" hidden style="text-align:center;font-size:.9rem">ou avec le mot de passe</p>
     <label>Mot de passe <input type="password" id="cle" autocomplete="current-password" required></label>
     <label class="case"><input type="checkbox" id="memoriser"> Rester connectée sur cet appareil</label>
     <div class="erreur" id="erreur-cle" hidden></div>
@@ -314,6 +316,7 @@ select#choix-eleve { border: 1.5px solid var(--trait); border-radius: 8px; paddi
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="config.js?v=20261102a"></script>
+<script src="ms.js?v=20261102b"></script>
 <script src="exercices.js?v=20261014d"></script>
 <script src="evaluations.js?v=20261014d"></script>
 <script>window.PARCOURS_PYTHON = window.PARCOURS;</script>
@@ -1072,6 +1075,14 @@ document.querySelectorAll("#choix-parcours .puce").forEach(b => b.addEventListen
   definirParcours(b.dataset.parcours);
   if (BRUT) toutDessiner();
 }));
+/* Connexion avec le compte Microsoft : le retour passe par l'accueil, puis revient ici avec une clé de session. */
+if (!DEMO && window.MS && MS.disponible) {
+  $("b-microsoft").hidden = false; $("ou-ms").hidden = false;
+  $("b-microsoft").addEventListener("click", () => { $("b-microsoft").disabled = true; MS.demarrer("prof.html", "prof").catch(() => { $("b-microsoft").disabled = false; }); });
+  let msg = null;
+  try { msg = sessionStorage.getItem("ms:erreurProf"); sessionStorage.removeItem("ms:erreurProf"); } catch {}
+  if (msg) { $("erreur-cle").textContent = msg; $("erreur-cle").hidden = false; }
+}
 if (DEMO) { CLE = "demo"; ouvrir(); }
 else { CLE = store.lire("pyclasse:cle"); if (CLE) ouvrir(); }
 </script>

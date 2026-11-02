@@ -24,13 +24,14 @@ window.MS = (function () {
   const ecrireFlux = v => { try { sessionStorage.setItem(CLE, JSON.stringify(v)); } catch {} };
   const effacerFlux = () => { try { sessionStorage.removeItem(CLE); } catch {} };
 
-  /** Envoie l'élève vers Microsoft. page : la page où le ramener après la connexion (ex. "algo.html"). */
-  async function demarrer(page) {
+  /** Envoie vers Microsoft. page : la page où ramener après la connexion (ex. "algo.html").
+   *  role : "prof" pour le tableau de bord enseignant (par défaut : élève). */
+  async function demarrer(page, role) {
     if (!disponible) throw new Error("Connexion Microsoft non configurée");
     const verifier = b64url(alea(48));
     const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
     const state = b64url(alea(16)), nonce = b64url(alea(16));
-    ecrireFlux({ verifier, state, nonce, page: page || "" });
+    ecrireFlux({ verifier, state, nonce, page: page || "", role: role || "" });
     const p = new URLSearchParams({
       client_id: C.msClient, response_type: "code", redirect_uri: retour(), response_mode: "query",
       scope: "openid profile email", state, nonce,
@@ -49,9 +50,9 @@ window.MS = (function () {
     history.replaceState(null, "", location.pathname);   // l'adresse ne garde ni code ni état
     if (q.has("error")) {
       const annule = q.get("error") === "access_denied";
-      return { erreur: annule ? "annule" : "refus", detail: (q.get("error_description") || q.get("error") || "").slice(0, 300) };
+      return { erreur: annule ? "annule" : "refus", detail: (q.get("error_description") || q.get("error") || "").slice(0, 300), role: flux && flux.role, page: flux && flux.page };
     }
-    if (!flux || q.get("state") !== flux.state) return { erreur: "etat", detail: "Connexion interrompue. Recommence." };
+    if (!flux || q.get("state") !== flux.state) return { erreur: "etat", detail: "Connexion interrompue. Recommence.", role: flux && flux.role, page: flux && flux.page };
     try {
       const r = await fetch(base() + "token", {
         method: "POST",
@@ -62,10 +63,10 @@ window.MS = (function () {
         }).toString()
       });
       const d = await r.json();
-      if (!d.id_token) return { erreur: "jeton", detail: (d.error_description || d.error || "").slice(0, 300) };
-      return { idToken: d.id_token, nonce: flux.nonce, page: flux.page };
+      if (!d.id_token) return { erreur: "jeton", detail: (d.error_description || d.error || "").slice(0, 300), role: flux.role, page: flux.page };
+      return { idToken: d.id_token, nonce: flux.nonce, page: flux.page, role: flux.role };
     } catch {
-      return { erreur: "reseau", detail: "" };
+      return { erreur: "reseau", detail: "", role: flux.role, page: flux.page };
     }
   }
 
@@ -73,6 +74,7 @@ window.MS = (function () {
   function messageErreur(code) {
     switch (code) {
       case "annule": return "Connexion annulée.";
+      case "compte_non_autorise": return "Ce compte Microsoft n'a pas accès au tableau de bord enseignant.";
       case "compte_inconnu": return "Ton compte Microsoft n'est pas dans la liste de la classe. Préviens ton professeur.";
       case "jeton_invalide": case "jeton_expire": case "jeton_deja_utilise": case "etat": case "jeton":
         return "La connexion Microsoft n'a pas pu être vérifiée. Réessaie.";
