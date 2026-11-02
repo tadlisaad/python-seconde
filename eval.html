@@ -153,10 +153,9 @@ pre.programme { font-size: 1rem; line-height: 1.6; }
   #liste .bouton { margin-top: 0; }
 }
 /* Charte EFI Casablanca : bleu #1C6BB3, bleu foncé #103D66, rouge #C5040F, police Open Sans. */
-.logo-efi { display: block; height: 34px; width: auto; }
-.logo-grand { height: 60px; margin-bottom: .6rem; }
+.logo-efi { display: block; height: 38px; width: auto; }
+.logo-grand { height: 64px; margin-bottom: .6rem; }
 .barre { border-top: 4px solid var(--rouge); }
-@media (prefers-color-scheme: dark) { .logo-efi { background: #fff; border-radius: 8px; padding: 3px 8px; box-sizing: content-box; } }
 </style>
 </head>
 <body>
@@ -164,7 +163,7 @@ pre.programme { font-size: 1rem; line-height: 1.6; }
 <!-- Connexion -->
 <section id="ecran-connexion" class="centre">
   <form class="carte" id="form-connexion" autocomplete="off">
-    <img class="logo-efi logo-grand" src="logo-efi.webp" alt="EFI Casablanca" width="176" height="60">
+    <picture><source media="(prefers-color-scheme: dark)" srcset="logo-efi-complet-blanc.webp"><img class="logo-efi logo-grand" src="logo-efi-complet.webp" alt="EFI Casablanca" width="202" height="64"></picture>
     <p class="surtitre" id="etablissement"></p>
     <h1>Évaluation Python</h1>
     <p class="doux">Connecte-toi avec ton identifiant et ton code habituels.</p>
