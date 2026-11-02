@@ -153,6 +153,7 @@ print(prix)</pre>
         depart: "duree = 4000\n",
         tests: [{ entree: "", attendu: "1 h 6 min 40 s" }],
         exige: [{ motif: "//", message: "Utilise le quotient entier //." }, { motif: "%", message: "Utilise le reste %." }],
+        interdit: [{ motif: "6\\s*min\\s*40", message: "La durée doit être calculée par le programme, pas écrite à la main." }],
         indices: ["Une heure = 3600 s : heures = duree // 3600", "Le reste après les heures : reste = duree % 3600, puis minutes = reste // 60 et secondes = reste % 60."]
       },
       {
