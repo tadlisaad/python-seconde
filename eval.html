@@ -755,9 +755,20 @@ async function rendre(auto) {
   $("confirmer").hidden = true;
   info("Correction en cours…", "Ne ferme pas la page.");
   $("b-reessayer").hidden = true;
-  await python.pret;
+  // Si Python ne répond plus (chargement raté, plantage), la copie part quand même :
+  // les questions qu'on n'a pas pu corriger valent 0 et le professeur le voit dans la colonne « erreur ».
+  let pythonOk = true;
+  try { await python.pret; } catch { pythonOk = false; }
   const details = [];
-  for (let i = 0; i < S.questions.length; i++) details.push(await corrigerQuestion(S.questions[i], S.reponses[i]));
+  for (let i = 0; i < S.questions.length; i++) {
+    const q = S.questions[i];
+    try {
+      if (!pythonOk && q.type === "code") throw new Error("python");
+      details.push(await corrigerQuestion(q, S.reponses[i]));
+    } catch {
+      details.push({ q: q.num, v: q.version, points: 0, max: q.points, tests: `0/${(q.tests || []).length}`, regles: [], erreur: "correction_impossible" });
+    }
+  }
   const total = details.reduce((a, d) => a + d.points, 0);
   const max = details.reduce((a, d) => a + d.max, 0);
   const note20 = sur20(total, max);
