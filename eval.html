@@ -161,8 +161,10 @@ pre.programme { font-size: 1rem; line-height: 1.6; }
     <h1>Évaluation Python</h1>
     <p class="doux">Connecte-toi avec ton identifiant et ton code habituels.</p>
     <div class="erreur" id="demo" hidden>Cette page fonctionne seulement quand le site est relié à la Google Sheet (adresse du script dans config.js).</div>
-    <div class="champ"><label for="c-id">Identifiant</label><input id="c-id" required autocapitalize="none" spellcheck="false"></div>
-    <div class="champ"><label for="c-code">Code à 4 chiffres</label><input id="c-code" required inputmode="numeric" maxlength="8"></div>
+    <button class="bouton plein" type="button" id="b-microsoft" hidden>Se connecter avec Microsoft</button>
+    <p class="doux" id="ou-ms" hidden style="margin:0;text-align:center">ou avec l'identifiant et le code</p>
+    <div class="champ" id="champ-id"><label for="c-id">Identifiant</label><input id="c-id" required autocapitalize="none" spellcheck="false"></div>
+    <div class="champ" id="champ-code"><label for="c-code">Code à 4 chiffres</label><input id="c-code" required inputmode="numeric" maxlength="8"></div>
     <div class="erreur" id="erreur-connexion" hidden></div>
     <button class="bouton plein" id="b-connexion" type="submit">Se connecter</button>
   </form>
@@ -284,6 +286,7 @@ pre.programme { font-size: 1rem; line-height: 1.6; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
 <script src="config.js?v=20261014d"></script>
+<script src="ms.js?v=20261102a"></script>
 <script src="evaluations.js?v=20261014d"></script>
 <script src="verif.js?v=20261014d"></script>
 <script src="schema.js?v=20261014d"></script>
@@ -413,7 +416,12 @@ let python = null;
 $("etablissement").textContent = (window.CONFIG && CONFIG.etablissement) || "";
 if (!URL_SERVEUR) { $("demo").hidden = false; $("b-connexion").disabled = true; }
 const session = local.lire("pyclasse:session", null);
-if (session && session.code) { $("c-id").value = session.id; }
+if (session && session.code && !session.ms) { $("c-id").value = session.id; }
+if (window.MS && MS.disponible && URL_SERVEUR) {
+  $("b-microsoft").hidden = false; $("ou-ms").hidden = false;
+  if (CONFIG.msSeulement) { ["champ-id", "champ-code", "b-connexion", "ou-ms"].forEach(i => { $(i).hidden = true; }); $("c-id").required = false; $("c-code").required = false; }
+  $("b-microsoft").addEventListener("click", () => { $("b-microsoft").disabled = true; MS.demarrer("eval.html").catch(() => { $("b-microsoft").disabled = false; }); });
+}
 
 $("form-connexion").addEventListener("submit", async ev => {
   ev.preventDefault();
@@ -421,6 +429,8 @@ $("form-connexion").addEventListener("submit", async ev => {
   await charger();
 });
 $("b-reessayer").addEventListener("click", charger);
+// Élève déjà connecté avec Microsoft : on reprend directement, sans retaper quoi que ce soit.
+if (session && session.ms && URL_SERVEUR) { S.eleve = { id: session.id, code: session.code, ms: true }; charger(); }
 
 async function charger() {
   const err = $("erreur-connexion");
@@ -428,7 +438,7 @@ async function charger() {
   $("b-connexion").disabled = true;
   try {
     const d = await appelPost({ action: "evalEtat", id: S.eleve.id, code: S.eleve.code });
-    if (!d.ok) { err.textContent = d.erreur === "trop_d_essais" ? "Trop d'essais ratés. Attends 10 minutes ou demande à ton professeur." : "Identifiant ou code incorrect."; err.hidden = false; montrer("ecran-connexion"); return; }
+    if (!d.ok) { err.textContent = d.erreur === "trop_d_essais" ? "Trop d'essais ratés. Attends 10 minutes ou demande à ton professeur." : S.eleve.ms ? "Ta connexion Microsoft a expiré. Reconnecte-toi avec Microsoft." : "Identifiant ou code incorrect."; err.hidden = false; montrer("ecran-connexion"); return; }
     S.eleve.prenom = d.prenom;
     S.eleve.classe = d.classe;
     if (!d.eval) return info("Pas d'évaluation en cours", `Bonjour ${d.prenom}. Ton professeur n'a pas encore ouvert l'évaluation. Attends son signal, puis clique sur Réessayer.`);

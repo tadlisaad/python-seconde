@@ -57,6 +57,7 @@ a { color: inherit; }
 .champ input { border: 1.5px solid var(--trait); border-radius: 8px; padding: .65rem .8rem; background: var(--fond); font-family: var(--f-code); }
 .champ input:focus { border-color: var(--accent); outline: none; }
 .erreur-connexion { color: var(--ko); background: var(--ko-doux); border-radius: 8px; padding: .6rem .8rem; font-size: .95rem; }
+.ou-ms { margin: 0; text-align: center; font-size: .9rem; opacity: .75; }
 .bandeau-demo { background: var(--surligne-doux); border-radius: 8px; padding: .6rem .8rem; font-size: .9rem; }
 
 /* Accueil */
@@ -120,7 +121,9 @@ main { max-width: 1040px; margin: 0 auto; padding: 1.8rem 16px 4rem; display: gr
     </div>
     <p>Algorigrammes, Python et évaluations. Connecte-toi avec l'identifiant et le code donnés par ton professeur.</p>
     <div class="bandeau-demo" id="bandeau-demo" hidden>Mode démonstration : le site n'est pas encore relié à la Google Sheet. Tape n'importe quel identifiant ; rien n'est envoyé.</div>
-    <div class="champ">
+    <button class="bouton plein" type="button" id="b-microsoft" hidden>Se connecter avec Microsoft</button>
+    <p class="ou-ms" id="ou-ms" hidden>ou avec l'identifiant et le code</p>
+    <div class="champ" id="champ-id">
       <label for="c-id">Identifiant</label>
       <input id="c-id" name="identifiant" required placeholder="efi26_lm07" autocapitalize="none" spellcheck="false">
     </div>
@@ -198,6 +201,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 1.8rem 16px 4rem; display: gr
 </div>
 
 <script src="config.js?v=20261014d"></script>
+<script src="ms.js?v=20261102a"></script>
 <script src="exercices.js?v=20261014d"></script>
 <script src="algorigrammes.js?v=20261014d"></script>
 <script src="evaluations.js?v=20261014d"></script>
@@ -267,7 +271,7 @@ function ouvrir(session, serveur) {
   majProgression(session);
   if (!serveur && !DEMO) {
     appelServeur({ action: "connexion", id: session.id, code: session.code }).then(d => {
-      if (!d.ok) { deconnecter("Ton code a changé. Reconnecte-toi."); return; }
+      if (!d.ok) { deconnecter(session.ms ? "Ta connexion a expiré. Reconnecte-toi avec Microsoft." : "Ton code a changé. Reconnecte-toi."); return; }
       reussisServeur = d.reussis || [];
       majProgression(session);
     }).catch(() => {});
@@ -282,14 +286,45 @@ function deconnecter(message) {
 }
 $("b-deconnexion").addEventListener("click", () => deconnecter());
 
-function initConnexion() {
+function montrerErreur(texte) { $("erreur-connexion").textContent = texte; $("erreur-connexion").hidden = false; }
+
+/* Connexion Microsoft : bouton, et traitement du retour de Microsoft (code dans l'adresse).
+ * Renvoie "ok" (élève connecté), "erreur" (message affiché) ou null (rien de Microsoft à faire). */
+async function initMicrosoft() {
+  if (DEMO || !window.MS || !MS.disponible) return null;
+  const b = $("b-microsoft"), libelle = b.textContent;
+  b.hidden = false; $("ou-ms").hidden = false;
+  if (CONFIG.msSeulement) { $("champ-id").hidden = true; $("champ-code").hidden = true; $("c-id").required = false; $("c-code").required = false; $("b-connexion").hidden = true; $("ou-ms").hidden = true; }
+  b.addEventListener("click", async () => {
+    b.disabled = true;
+    try { await MS.demarrer("index.html"); } catch { montrerErreur(MS.messageErreur("")); b.disabled = false; }
+  });
+  const r = await MS.traiterRetour();
+  if (!r) return null;
+  if (r.erreur) { montrerErreur(MS.messageErreur(r.erreur)); return "erreur"; }
+  b.disabled = true; b.textContent = "Connexion…";
+  try {
+    const d = await appelServeur({ action: "connexionMs", idToken: r.idToken, nonce: r.nonce });
+    if (!d.ok) { montrerErreur(MS.messageErreur(d.erreur)); b.disabled = false; b.textContent = libelle; return "erreur"; }
+    const session = { id: d.id, code: d.jeton, prenom: d.prenom, classe: d.classe, ms: true };
+    if (r.page && r.page !== "index.html") { local.ecrire("pyclasse:session", session); location.replace(r.page); return "ok"; }
+    ouvrir(session, d);
+    return "ok";
+  } catch {
+    montrerErreur(MS.messageErreur("reseau")); b.disabled = false; b.textContent = libelle; return "erreur";
+  }
+}
+
+async function initConnexion() {
   $("etablissement").textContent = (window.CONFIG && CONFIG.etablissement) || "";
   $("bandeau-demo").hidden = !DEMO;
   $("champ-code").hidden = DEMO;
   $("c-code").required = !DEMO;
   const msg = local.lire("pyclasse:message", null);
-  if (msg) { local.suppr("pyclasse:message"); $("erreur-connexion").textContent = msg; $("erreur-connexion").hidden = false; }
-  const session = local.lire("pyclasse:session", null);
+  if (msg) { local.suppr("pyclasse:message"); montrerErreur(msg); }
+  const ms = await initMicrosoft();
+  if (ms === "ok") return;
+  const session = ms === "erreur" ? null : local.lire("pyclasse:session", null);
   if (session) { ouvrir(session, null); return; }
   $("form-connexion").addEventListener("submit", async ev => {
     ev.preventDefault();

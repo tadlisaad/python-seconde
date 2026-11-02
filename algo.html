@@ -59,6 +59,7 @@ kbd { font-family: var(--f-code); font-size: .75em; border: 1px solid currentCol
 .champ input { border: 1.5px solid var(--trait); border-radius: 8px; padding: .65rem .8rem; background: var(--fond); font-family: var(--f-code); }
 .champ input:focus { border-color: var(--accent); outline: none; }
 .erreur-connexion { color: var(--ko); background: var(--ko-doux); border-radius: 8px; padding: .6rem .8rem; font-size: .95rem; }
+.ou-ms { margin: 0; text-align: center; font-size: .9rem; opacity: .75; }
 .bandeau-demo { background: var(--surligne-doux); border-radius: 8px; padding: .6rem .8rem; font-size: .9rem; }
 
 /* ---------- Application ---------- */
@@ -235,7 +236,9 @@ table.trace th { background: var(--fond); font-size: .85rem; }
     </div>
     <p>Connecte-toi avec l'identifiant et le code donnés par ton professeur. Ta progression est enregistrée à chaque vérification.</p>
     <div class="bandeau-demo" id="bandeau-demo" hidden>Mode démonstration : le site n'est pas encore relié à la Google Sheet. Tape n'importe quel identifiant ; rien n'est envoyé.</div>
-    <div class="champ">
+    <button class="bouton plein" type="button" id="b-microsoft" hidden>Se connecter avec Microsoft</button>
+    <p class="ou-ms" id="ou-ms" hidden>ou avec l'identifiant et le code</p>
+    <div class="champ" id="champ-id">
       <label for="c-id">Identifiant</label>
       <input id="c-id" name="identifiant" required placeholder="efi26_lm07" autocapitalize="none" spellcheck="false">
     </div>
@@ -307,6 +310,7 @@ table.trace th { background: var(--fond); font-size: .85rem; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
 <script src="config.js?v=20261014d"></script>
+<script src="ms.js?v=20261102a"></script>
 <script src="algorigrammes.js?v=20261014d"></script>
 <script src="schema.js?v=20261014d"></script>
 <script>window.PARCOURS = window.PARCOURS_ALGO;</script>
@@ -395,7 +399,7 @@ async function envoyer() {
     });
     const d = await r.json();
     if (d.ok) { S.file.splice(0, lot.length); sauver(); }
-    else if (d.erreur === "identifiant_ou_code") { S.file = []; sauver(); deconnecter("Ton code a changé. Reconnecte-toi."); }
+    else if (d.erreur === "identifiant_ou_code") { S.file = []; sauver(); deconnecter("Ta connexion a expiré ou ton code a changé. Reconnecte-toi."); }
   } catch { /* nouvel essai plus tard */ }
   envoiEnCours = false;
   majStatut();
@@ -869,6 +873,17 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) envoy
 const msg = local.lire("pyclasse:message", null);
 if (msg && local.lire("pyclasse:session", null)) { local.suppr("pyclasse:message"); $("erreur-connexion").textContent = msg; $("erreur-connexion").hidden = false; }
 initConnexion();
+</script>
+<script>
+/* Bouton « Se connecter avec Microsoft » : Microsoft ramène l'élève sur l'accueil, puis ici. */
+(function () {
+  if (!window.MS || !MS.disponible || !window.CONFIG || !CONFIG.url) return;
+  const b = document.getElementById("b-microsoft");
+  if (!b) return;
+  b.hidden = false; document.getElementById("ou-ms").hidden = false;
+  if (CONFIG.msSeulement) { ["champ-id", "champ-code", "b-connexion", "ou-ms"].forEach(i => { const e = document.getElementById(i); if (e) e.hidden = true; }); document.getElementById("c-id").required = false; document.getElementById("c-code").required = false; }
+  b.addEventListener("click", () => { b.disabled = true; MS.demarrer("algo.html").catch(() => { b.disabled = false; }); });
+})();
 </script>
 </body>
 </html>
