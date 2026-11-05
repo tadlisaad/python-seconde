@@ -141,6 +141,7 @@ select#choix-eval { border: 1.5px solid var(--trait); border-radius: 8px; paddin
 .detail-grille { display: grid; gap: .6rem; }
 
 /* Fiche élève */
+.reinit-ligne { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
 .fiche-tete { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: end; }
 .fiche-tete h2 { font-size: 1.7rem; font-weight: 800; }
 .fiche-tete p { margin: .2rem 0 0; color: var(--doux); }
@@ -332,6 +333,19 @@ table.sans-clic tbody tr:hover td { background: none; }
         <h2>Code soumis</h2>
         <p class="sous">Tous ses essais, du plus récent au plus ancien.</p>
         <div id="f-codes"><button class="bouton" id="b-codes" type="button">Afficher le code de ses essais</button></div>
+      </div>
+      <div class="panneau" id="f-reinit">
+        <h2>Remettre à zéro</h2>
+        <p class="sous">Efface les exercices de cet élève (réussites, essais, codes) pour qu'il reparte de zéro. Les essais effacés sont copiés dans l'onglet « Essais_archives » du Google Sheet. Ses évaluations et ses notes ne sont pas touchées. Son poste se remet à zéro à sa prochaine connexion.</p>
+        <div class="reinit-ligne">
+          <select id="reinit-parcours" aria-label="Ce qu'il faut remettre à zéro">
+            <option value="tous">Python et algorigrammes</option>
+            <option value="python">Python seulement</option>
+            <option value="algo">Algorigrammes seulement</option>
+          </select>
+          <button class="bouton" id="b-reinit" type="button">Remettre à zéro</button>
+          <span class="ac-info" id="reinit-msg" role="status" aria-live="polite"></span>
+        </div>
       </div>
     </section>
 
@@ -875,6 +889,7 @@ function remplirChoixEleve(liste) {
 $("choix-eleve").addEventListener("change", e => { if (e.target.value) ouvrirFiche(e.target.value); });
 
 function ouvrirFiche(id) {
+  if (id !== ELEVE_FICHE) dire("reinit-msg", "");
   ELEVE_FICHE = id;
   montrerVue("fiche");
   const liste = calculer();
@@ -932,6 +947,26 @@ function dessinerFiche(liste) {
   tableTriable($("t-fiche"), cols, lignes, { cle: "num", sens: "asc" });
   $("f-codes").innerHTML = '<button class="bouton" id="b-codes" type="button">Afficher le code de ses essais</button>';
   $("b-codes").addEventListener("click", chargerCodes);
+}
+
+$("b-reinit").addEventListener("click", ev => {
+  if (!ELEVE_FICHE) { dire("reinit-msg", "Choisissez d'abord un élève.", "ko"); return; }
+  confirmer("reinit", ev.currentTarget, "Remettre à zéro", reinitialiserEleve);
+});
+async function reinitialiserEleve() {
+  const b = $("b-reinit"), id = ELEVE_FICHE, parcours = $("reinit-parcours").value;
+  b.disabled = true; b.textContent = "Remettre à zéro";
+  dire("reinit-msg", "Remise à zéro…");
+  try {
+    const d = await appelProf({ action: "profReinitEleve", id, parcours });
+    if (!d.ok) dire("reinit-msg", texteErreurProf(d.erreur), "ko");
+    else {
+      if (DEMO) toutDessiner(); else await charger();   // en démonstration, charger() régénérerait les données d'exemple
+      const n = d.supprimes;
+      dire("reinit-msg", (n ? `${n} essai${n > 1 ? "s" : ""} effacé${n > 1 ? "s" : ""}, copiés dans « Essais_archives ». ` : "Aucun essai à effacer. ") + `Son poste repartira de zéro à sa prochaine connexion. (${heureCourte()})`, "ok");
+    }
+  } catch { dire("reinit-msg", "Le script ne répond pas. Vérifiez la connexion, puis réessayez.", "ko"); }
+  b.disabled = false;
 }
 
 async function chargerCodes() {
@@ -1146,6 +1181,8 @@ const ERREURS_PROF = {
   acces_invalide: "Réglage refusé par le script.",
   evaluation_inconnue: "Cette évaluation n'existe pas dans le script : mettez-le à jour.",
   code_trop_court: "4 caractères minimum.",
+  eleve_inconnu: "Élève introuvable dans la feuille « Eleves » : actualisez la page.",
+  parcours_inconnu: "Choix inconnu du script : mettez-le à jour.",
   "action inconnue": "Le script Google n'est pas à jour : collez la nouvelle version de Code.gs et redéployez-la (Déployer > Gérer les déploiements > nouvelle version)."
 };
 const texteErreurProf = e => ERREURS_PROF[e] || "Le script a répondu : " + e;
@@ -1156,6 +1193,12 @@ function demoProf(c) {
   if (c.action === "profAcces") c.classes.forEach(cl => { if (c.acces === null) delete DEMO_PROF.acces[cl]; else DEMO_PROF.acces[cl] = c.acces; });
   else if (c.action === "profEval") c.classes.forEach(cl => { if (c.op === "ouvrir") DEMO_PROF.ouvertes[cl] = c.evaluation; else delete DEMO_PROF.ouvertes[cl]; });
   else if (c.action === "profCodeDeblocage") DEMO_PROF.code = true;
+  else if (c.action === "profReinitEleve") {
+    const garde = e => !(e[1] === c.id && (c.parcours === "tous" || (c.parcours === "python" ? /^m/.test(e[2]) : /^g/.test(e[2]))));
+    const avant = BRUT.essais.length;
+    BRUT.essais = BRUT.essais.filter(garde);
+    return { ok: true, supprimes: avant - BRUT.essais.length, parcours: c.parcours };
+  }
   return { ok: true, acces: DEMO_PROF.acces, ouvertes: DEMO_PROF.ouvertes, classes: [...new Set(BRUT.eleves.map(e => e.classe))].sort(),
     evaluations: LISTE_EVALS.map(e => e.id), codeDeblocageDefini: DEMO_PROF.code };
 }

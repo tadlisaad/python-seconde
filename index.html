@@ -288,9 +288,9 @@ async function verifierEval(session) {
 
 function ouvrir(session, serveur) {
   local.ecrire("pyclasse:session", session);
-  if (serveur) ACCES.sync(serveur);
+  if (serveur) { ACCES.sync(serveur); ACCES.reinit(serveur, session.id); }
   majAcces();
-  if (!DEMO && !suiviAcces) { suiviAcces = true; ACCES.suivre(() => appelServeur({ action: "connexion", id: session.id, code: session.code }), majAcces); }
+  if (!DEMO && !suiviAcces) { suiviAcces = true; ACCES.suivre(() => appelServeur({ action: "connexion", id: session.id, code: session.code }), (d, change) => { if (Object.keys(ACCES.reinit(d, session.id)).length) { reussisServeur = d.reussis || []; majProgression(session); } if (change) majAcces(); }); }
   $("ecran-connexion").hidden = true;
   $("app").hidden = false;
   $("nom-eleve").textContent = session.prenom || session.id;
@@ -302,7 +302,7 @@ function ouvrir(session, serveur) {
     appelServeur({ action: "connexion", id: session.id, code: session.code }).then(d => {
       if (!d.ok) { deconnecter(session.ms ? "Ta connexion a expiré. Reconnecte-toi avec Microsoft." : "Ton code a changé. Reconnecte-toi."); return; }
       reussisServeur = d.reussis || [];
-      ACCES.sync(d); majAcces();
+      ACCES.sync(d); ACCES.reinit(d, session.id); majAcces();
       majProgression(session);
     }).catch(() => {});
   }

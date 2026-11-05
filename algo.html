@@ -426,7 +426,7 @@ async function envoyer() {
     const r = await fetch(URL_SERVEUR, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "essais", id: S.eleve.id, code: S.eleve.code, essais: lot })
+      body: JSON.stringify({ action: "essais", id: S.eleve.id, code: S.eleve.code, essais: lot, reinitVu: ACCES.reinitVu(S.eleve.id) })
     });
     const d = await r.json();
     if (d.ok) { S.file.splice(0, lot.length); sauver(); }
@@ -482,7 +482,7 @@ let suiviAcces = false;
 function ouvrir(session, serveur) {
   S.eleve = session;
   local.ecrire("pyclasse:session", session);
-  if (serveur) ACCES.sync(serveur);
+  if (serveur) { ACCES.sync(serveur); ACCES.reinit(serveur, session.id); }
   const l = local.lire(cleEleve(), {});
   S.reussis = new Set(l.reussis || []);
   S.tentes = new Set(l.tentes || []);
@@ -497,6 +497,7 @@ function ouvrir(session, serveur) {
     // Session reprise : on resynchronise en arrière-plan ce qui a été fait sur un autre poste.
     appelServeur({ action: "connexion", id: session.id, code: session.code }).then(d => {
       if (!d.ok) return;
+      if (ACCES.reinit(d, session.id).algo) remiseAZero();
       (d.reussis || []).filter(x => IDS.has(x)).forEach(x => S.reussis.add(x));
       Object.entries(d.codes || {}).filter(([exo]) => IDS.has(exo)).forEach(([exo, code]) => { S.tentes.add(exo); if (!(exo in S.codes)) S.codes[exo] = code; });
       sauver(); ACCES.sync(d); majAcces(); majJauge();
@@ -510,7 +511,7 @@ function ouvrir(session, serveur) {
   majJauge();
   majStatut();
   majAcces();
-  if (!DEMO && !suiviAcces) { suiviAcces = true; ACCES.suivre(() => appelServeur({ action: "connexion", id: S.eleve.id, code: S.eleve.code }), majAcces); }
+  if (!DEMO && !suiviAcces) { suiviAcces = true; ACCES.suivre(() => appelServeur({ action: "connexion", id: S.eleve.id, code: S.eleve.code }), (d, change) => { if (ACCES.reinit(d, S.eleve.id).algo) remiseAZero(); else if (change) majAcces(); }); }
   envoyer();
 }
 
@@ -526,6 +527,12 @@ async function deconnecter(message) {
 $("b-deconnexion").addEventListener("click", () => deconnecter());
 
 /* ---------- Parcours ---------- */
+/* Le professeur a remis ce compte à zéro : on repart d'une page vierge (acces.js a déjà effacé la mémoire du poste). */
+function remiseAZero() {
+  S.reussis = new Set(); S.tentes = new Set(); S.codes = {}; S.file = []; S.temps = {}; S.indices = {};
+  S.exo = null;
+  sauver(); majJauge(); majStatut(); majAcces();
+}
 /* Réglage du professeur (acces.js) : notions fermées grisées, cours masqué, message si rien n'est ouvert. */
 function majCours(exo) {
   const ouvert = ACCES.cours("algo", Number(exo.num.split(".")[0]));
