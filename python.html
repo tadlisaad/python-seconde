@@ -95,6 +95,7 @@ kbd { font-family: var(--f-code); font-size: .75em; border: 1px solid currentCol
 .pastille.ferme { opacity: .55; cursor: not-allowed; border-style: dashed; }
 .pastille.ferme:hover { border-color: var(--trait); }
 .module.ferme h2 small::before { content: "🔒 "; }
+.module.defi h2 span { color: var(--accent); }
 .verrou { max-width: 60ch; margin: 3rem auto; text-align: center; padding: 1.5rem; border: 1.5px dashed var(--trait); border-radius: 12px; background: var(--papier); color: var(--doux); }
 .verrou strong { display: block; color: var(--encre); font-size: 1.15rem; margin-bottom: .3rem; }
 .cours-ferme { margin: 0; color: var(--doux); font-size: .95rem; border: 1.5px dashed var(--trait); border-radius: 10px; padding: .7rem .9rem; }
@@ -302,12 +303,19 @@ details.cours summary::-webkit-details-marker { display: none; }
 <script src="acces.js?v=20261102a"></script>
 <script src="ms.js?v=20261102b"></script>
 <script src="exercices.js?v=20261102c"></script>
+<script src="defis.js?v=20261106a"></script>
 <script src="verif.js?v=20261014d"></script>
 <script>
 "use strict";
 const URL_SERVEUR = (window.CONFIG && CONFIG.url || "").trim();
 const DEMO = !URL_SERVEUR;
-const EXOS = PARCOURS.flatMap((m, im) => m.exercices.map((e, ie) => ({ ...e, module: m, num: `${im + 1}.${ie + 1}` })));
+/* Les défis (defis.js) forment un dernier module, débloqué quand les exercices du parcours sont tous réussis ;
+   ils ne comptent pas dans la progression « x / 32 ». */
+const MODULES = PARCOURS.concat(window.DEFIS || []);
+const EXOS = MODULES.flatMap((m, im) => m.exercices.map((e, ie) => ({ ...e, module: m, num: m.defi ? `D${ie + 1}` : `${im + 1}.${ie + 1}` })));
+const EXOS_PARCOURS = EXOS.filter(e => !e.module.defi);
+const chapitreFini = () => EXOS_PARCOURS.every(e => S.reussis.has(e.id));
+const exoOuvert = e => ACCES.exo(e.id) && (!e.module.defi || chapitreFini());
 const IDS = new Set(EXOS.map(e => e.id));
 const $ = id => document.getElementById(id);
 
@@ -491,40 +499,43 @@ function remiseAZero() {
 }
 /* Réglage du professeur (acces.js) : notions fermées grisées, cours masqué, message si rien n'est ouvert. */
 function majCours(exo) {
+  if (exo.module.defi) { $("cours").hidden = true; $("cours-ferme").hidden = true; return; }   // les défis n'ont pas de cours
   const ouvert = ACCES.cours("python", Number(exo.num.split(".")[0]));
   $("cours").hidden = !ouvert;
   $("cours-ferme").hidden = ouvert;
 }
 function majAcces() {
   dessinerParcours();
-  const rien = !EXOS.some(e => ACCES.exo(e.id));
+  const rien = !EXOS.some(exoOuvert);
   $("verrou").hidden = !rien;
   document.querySelector(".exo-contenu").hidden = rien;
   if (rien) return;
-  if (!S.exo || !ACCES.exo(S.exo.id)) choisir((EXOS.find(e => ACCES.exo(e.id) && !S.reussis.has(e.id)) || EXOS.find(e => ACCES.exo(e.id))).id);
+  if (!S.exo || !exoOuvert(S.exo)) choisir((EXOS.find(e => exoOuvert(e) && !S.reussis.has(e.id)) || EXOS.find(exoOuvert)).id);
   else majCours(S.exo);
 }
 function dessinerParcours() {
   const nav = $("parcours");
   nav.innerHTML = "";
-  PARCOURS.forEach((m, im) => {
+  MODULES.forEach((m, im) => {
     const faits = m.exercices.filter(e => S.reussis.has(e.id)).length;
     const bloc = document.createElement("section");
-    bloc.className = "module" + (ACCES.exercices("python", im + 1) ? "" : " ferme");
+    const verrouChapitre = m.defi && !chapitreFini();
+    bloc.className = "module" + (m.defi ? " defi" : "") + (ACCES.exercices("python", im + 1) && !verrouChapitre ? "" : " ferme");
     bloc.innerHTML = `<h2><span></span><small>${faits}/${m.exercices.length}</small></h2><p class="notion"></p><div class="pastilles"></div>`;
-    bloc.querySelector("h2 span").textContent = `${im + 1}. ${m.titre}`;
-    bloc.querySelector(".notion").textContent = m.notion;
+    bloc.querySelector("h2 span").textContent = m.defi ? "Défis" : `${im + 1}. ${m.titre}`;
+    bloc.querySelector(".notion").textContent = verrouChapitre ? `Débloqués quand les ${EXOS_PARCOURS.length} exercices sont réussis` : m.notion;
     const zone = bloc.querySelector(".pastilles");
-    m.exercices.forEach((e, ie) => {
+    m.exercices.forEach(e => {
+      const ex = EXOS.find(x => x.id === e.id);
       const b = document.createElement("button");
       b.type = "button";
-      b.className = "pastille";
+      b.className = "pastille" + (m.defi ? " defi" : "");
       if (S.reussis.has(e.id)) b.classList.add("reussi");
       else if (S.tentes.has(e.id)) b.classList.add("tente");
       if (S.exo && S.exo.id === e.id) b.classList.add("actif");
-      b.textContent = `${im + 1}.${ie + 1}`;
+      b.textContent = ex.num;
       b.title = e.titre + (S.reussis.has(e.id) ? " (réussi)" : S.tentes.has(e.id) ? " (commencé)" : "");
-      if (!ACCES.exo(e.id)) { b.classList.add("ferme"); b.disabled = true; b.title = e.titre + " (pas encore ouvert)"; }
+      if (!exoOuvert(ex)) { b.classList.add("ferme"); b.disabled = true; b.title = e.titre + (verrouChapitre ? " (se débloque quand tout le parcours est réussi)" : " (pas encore ouvert)"); }
       else b.addEventListener("click", () => choisir(e.id));
       zone.appendChild(b);
     });
@@ -532,7 +543,7 @@ function dessinerParcours() {
   });
 }
 function majJauge() {
-  const n = S.reussis.size, t = EXOS.length;
+  const n = EXOS_PARCOURS.filter(e => S.reussis.has(e.id)).length, t = EXOS_PARCOURS.length;
   $("jauge").style.width = (100 * n / t) + "%";
   $("jauge-texte").textContent = `${n} / ${t} réussis`;
 }
@@ -569,11 +580,12 @@ setInterval(() => {
 
 /* ---------- Affichage d'un exercice ---------- */
 function choisir(id) {
-  if (!ACCES.exo(id)) return;   // exercice fermé par le professeur
+  const cible = EXOS.find(e => e.id === id);
+  if (!cible || !exoOuvert(cible)) return;   // exercice fermé par le professeur (ou défi pas encore débloqué)
   if (S.exo) { S.codes[S.exo.id] = editeur.getValue(); sauver(); }
   const exo = EXOS.find(e => e.id === id);
   S.exo = exo;
-  $("exo-notion").textContent = `Notion ${exo.num.split(".")[0]} · ${exo.module.notion}`;
+  $("exo-notion").textContent = exo.module.defi ? `Défi · ${exo.module.notion}` : `Notion ${exo.num.split(".")[0]} · ${exo.module.notion}`;
   $("exo-titre").innerHTML = `<span class="num"></span><span class="t"></span>`;
   $("exo-titre").querySelector(".num").textContent = exo.num;
   $("exo-titre").querySelector(".t").textContent = exo.titre;
@@ -737,7 +749,7 @@ function afficherVerdict(exo, reussi, nouveau, regles, resultats, err) {
     boite.appendChild(liste);
   } else {
     const idx = EXOS.findIndex(e => e.id === exo.id);
-    const aFaire = e => ACCES.exo(e.id) && !S.reussis.has(e.id);   // seulement les exercices ouverts par le professeur
+    const aFaire = e => exoOuvert(e) && !S.reussis.has(e.id);   // seulement les exercices ouverts par le professeur
     const suivant = EXOS.slice(idx + 1).find(aFaire) || EXOS.find(aFaire);
     const ligne = document.createElement("div");
     ligne.className = "actions";
@@ -745,7 +757,7 @@ function afficherVerdict(exo, reussi, nouveau, regles, resultats, err) {
       const b = document.createElement("button");
       b.className = "bouton plein";
       b.type = "button";
-      b.textContent = `Exercice suivant : ${suivant.num} ${suivant.titre}`;
+      b.textContent = `${suivant.module.defi ? "Défi" : "Exercice suivant"} : ${suivant.num} ${suivant.titre}`;
       b.addEventListener("click", () => choisir(suivant.id));
       ligne.appendChild(b);
     } else {

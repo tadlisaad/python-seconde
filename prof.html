@@ -141,6 +141,14 @@ select#choix-eval { border: 1.5px solid var(--trait); border-radius: 8px; paddin
 .detail-grille { display: grid; gap: .6rem; }
 
 /* Fiche élève */
+.av-parcours { margin: .4rem 0 1rem; }
+.av-parcours h3 { font-size: 1rem; font-weight: 700; margin: 0 0 .5rem; display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.av-notions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.av-notion { display: inline-flex; align-items: center; gap: .4rem; border: 1px solid var(--trait); border-radius: 999px; padding: .3rem .75rem; background: var(--papier); font-size: .9rem; cursor: pointer; }
+.av-notion.classe { background: var(--fond); color: var(--doux); cursor: default; }
+.av-notion.perso { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); font-weight: 700; }
+.av-notion input { margin: 0; }
+.finis-vide { color: var(--doux); }
 .reinit-ligne { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
 .fiche-tete { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: end; }
 .fiche-tete h2 { font-size: 1.7rem; font-weight: 800; }
@@ -334,6 +342,16 @@ table.sans-clic tbody tr:hover td { background: none; }
         <p class="sous">Tous ses essais, du plus récent au plus ancien.</p>
         <div id="f-codes"><button class="bouton" id="b-codes" type="button">Afficher le code de ses essais</button></div>
       </div>
+      <div class="panneau" id="f-avance">
+        <h2>Avance individuelle</h2>
+        <p class="sous">Ouvrez à cet élève des notions que sa classe n'a pas encore, sans toucher au réglage de la classe. Il les voit en moins de 2 minutes. Ce qui est déjà ouvert par la classe est grisé.</p>
+        <div id="av-zone"></div>
+        <div class="reinit-ligne">
+          <button class="bouton plein" id="av-enregistrer" type="button">Enregistrer</button>
+          <button class="bouton discret" id="av-retirer" type="button">Retirer ses ouvertures en plus</button>
+          <span class="ac-info" id="av-msg" role="status" aria-live="polite"></span>
+        </div>
+      </div>
       <div class="panneau" id="f-reinit">
         <h2>Remettre à zéro</h2>
         <p class="sous">Efface les exercices de cet élève (réussites, essais, codes) pour qu'il reparte de zéro. Les essais effacés sont copiés dans l'onglet « Essais_archives » du Google Sheet. Ses évaluations et ses notes ne sont pas touchées. Son poste se remet à zéro à sa prochaine connexion.</p>
@@ -408,6 +426,13 @@ table.sans-clic tbody tr:hover td { background: none; }
           <span class="ac-info" id="ac-msg" role="status" aria-live="polite"></span>
         </div>
       </div>
+
+      <div class="panneau" id="ac-finis">
+        <h2>Élèves qui ont fini ce qui est ouvert</h2>
+        <p class="sous">Ils ont réussi tous les exercices ouverts pour eux. Ouvrez-leur la notion suivante (cela ne change pas le réglage de leur classe), ou demandez-leur d'aider les autres. Les défis ne s'ouvrent à un élève que lorsqu'il a réussi tous les exercices du parcours.</p>
+        <div class="defile"><table class="donnees sans-clic" id="t-finis"></table></div>
+        <p class="ac-message" id="finis-msg" role="status" aria-live="polite"></p>
+      </div>
     </section>
   </main>
 </div>
@@ -416,6 +441,7 @@ table.sans-clic tbody tr:hover td { background: none; }
 <script src="config.js?v=20261102a"></script>
 <script src="ms.js?v=20261102b"></script>
 <script src="exercices.js?v=20261102c"></script>
+<script src="defis.js?v=20261106a"></script>
 <script src="evaluations.js?v=20261014d"></script>
 <script>window.PARCOURS_PYTHON = window.PARCOURS;</script>
 <script src="algorigrammes.js?v=20261014d"></script>
@@ -425,7 +451,8 @@ const URL_SERVEUR = (window.CONFIG && CONFIG.url || "").trim();
 const DEMO = !URL_SERVEUR;
 const $ = id => document.getElementById(id);
 /* Deux parcours suivis : Python (exercices.js) et Algorigrammes (algorigrammes.js). */
-const LES_PARCOURS = { python: { nom: "Python", liste: window.PARCOURS }, algo: { nom: "Algorigrammes", liste: window.PARCOURS_ALGO || [] } };
+/* « acces » : ce que la grille d'accès propose. Pour Python, les défis (defis.js) sont une 9e ligne : ils ne comptent pas dans les statistiques. */
+const LES_PARCOURS = { python: { nom: "Python", liste: window.PARCOURS, acces: window.PARCOURS.concat(window.DEFIS || []) }, algo: { nom: "Algorigrammes", liste: window.PARCOURS_ALGO || [], acces: window.PARCOURS_ALGO || [] } };
 let PARCOURS_ACTIF = "python";
 let EXOS = [], IDX_EXO = {}, NB = 0;
 function definirParcours(cle) {
@@ -689,6 +716,7 @@ function toutDessiner() {
   remplirChoixEleve(liste);
   if (ELEVE_FICHE) dessinerFiche(liste);
   dessinerEvaluation(liste);
+  if (ETAT_PROF) dessinerAccesFinis();
 }
 
 function chiffre(val, lib, unite) {
@@ -947,6 +975,7 @@ function dessinerFiche(liste) {
   tableTriable($("t-fiche"), cols, lignes, { cle: "num", sens: "asc" });
   $("f-codes").innerHTML = '<button class="bouton" id="b-codes" type="button">Afficher le code de ses essais</button>';
   $("b-codes").addEventListener("click", chargerCodes);
+  dessinerAvance();
 }
 
 $("b-reinit").addEventListener("click", ev => {
@@ -1183,23 +1212,29 @@ const ERREURS_PROF = {
   code_trop_court: "4 caractères minimum.",
   eleve_inconnu: "Élève introuvable dans la feuille « Eleves » : actualisez la page.",
   parcours_inconnu: "Choix inconnu du script : mettez-le à jour.",
+  trop_de_reglages: "Trop de réglages individuels enregistrés : retirez-en quelques-uns.",
   "action inconnue": "Le script Google n'est pas à jour : collez la nouvelle version de Code.gs et redéployez-la (Déployer > Gérer les déploiements > nouvelle version)."
 };
 const texteErreurProf = e => ERREURS_PROF[e] || "Le script a répondu : " + e;
 
 /* Sans serveur (démonstration), les réglages vivent en mémoire pour que l'écran reste manipulable. */
-const DEMO_PROF = { acces: {}, ouvertes: { "2nde A": "eval1" }, code: true };
+const DEMO_PROF = { acces: {}, perso: {}, ouvertes: { "2nde A": "eval1" }, code: true };
 function demoProf(c) {
   if (c.action === "profAcces") c.classes.forEach(cl => { if (c.acces === null) delete DEMO_PROF.acces[cl]; else DEMO_PROF.acces[cl] = c.acces; });
   else if (c.action === "profEval") c.classes.forEach(cl => { if (c.op === "ouvrir") DEMO_PROF.ouvertes[cl] = c.evaluation; else delete DEMO_PROF.ouvertes[cl]; });
   else if (c.action === "profCodeDeblocage") DEMO_PROF.code = true;
+  else if (c.action === "profAccesEleve") {
+    const o = {};
+    PARCOURS_ACCES.forEach(p => { if (Array.isArray(c[p]) && c[p].length) o[p] = c[p]; });
+    if (Object.keys(o).length) DEMO_PROF.perso[c.id] = o; else delete DEMO_PROF.perso[c.id];
+  }
   else if (c.action === "profReinitEleve") {
     const garde = e => !(e[1] === c.id && (c.parcours === "tous" || (c.parcours === "python" ? /^m/.test(e[2]) : /^g/.test(e[2]))));
     const avant = BRUT.essais.length;
     BRUT.essais = BRUT.essais.filter(garde);
     return { ok: true, supprimes: avant - BRUT.essais.length, parcours: c.parcours };
   }
-  return { ok: true, acces: DEMO_PROF.acces, ouvertes: DEMO_PROF.ouvertes, classes: [...new Set(BRUT.eleves.map(e => e.classe))].sort(),
+  return { ok: true, acces: DEMO_PROF.acces, perso: DEMO_PROF.perso, ouvertes: DEMO_PROF.ouvertes, classes: [...new Set(BRUT.eleves.map(e => e.classe))].sort(),
     evaluations: LISTE_EVALS.map(e => e.id), codeDeblocageDefini: DEMO_PROF.code };
 }
 async function appelProf(corps) {
@@ -1214,7 +1249,7 @@ function dire(id, texte, etat) {
   el.classList.toggle("ko", etat === "ko");
 }
 const heureCourte = () => new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-const nbNotionsDe = p => LES_PARCOURS[p].liste.length;
+const nbNotionsDe = p => LES_PARCOURS[p].acces.length;
 const titreEval = id => { const e = LISTE_EVALS.find(x => x.id === id); return e ? e.titre : id; };
 const effectifClasse = cl => BRUT ? BRUT.eleves.filter(e => e.classe === cl).length : 0;
 
@@ -1231,6 +1266,8 @@ async function chargerEtatProf() {
   }
   dessinerAccesEval();
   dessinerAccesContenus();
+  dessinerAccesFinis();
+  dessinerAvance();
 }
 
 /* ----- Évaluations ----- */
@@ -1356,7 +1393,7 @@ function dessinerGrilles() {
   const zone = $("ac-grilles");
   zone.replaceChildren();
   PARCOURS_ACCES.forEach(p => {
-    const liste = LES_PARCOURS[p].liste, n = nbNotionsDe(p);
+    const liste = LES_PARCOURS[p].acces, n = nbNotionsDe(p);
     if (!liste.length) return;
     const bloc = document.createElement("div"); bloc.className = "ac-grille"; bloc.dataset.parcours = p;
     const h = document.createElement("h3"); h.innerHTML = "<span></span><small></small>";
@@ -1378,8 +1415,8 @@ function dessinerGrilles() {
     const corps = tab.createTBody();
     liste.forEach((m, i) => {
       const k = i + 1, tr = corps.insertRow(); tr.dataset.notion = k;
-      const c0 = tr.insertCell(); c0.textContent = `${k}. ${m.titre}`;
-      const sm = document.createElement("small"); sm.textContent = `${m.exercices.length} exercices`; c0.appendChild(sm);
+      const c0 = tr.insertCell(); c0.textContent = m.defi ? "Défis" : `${k}. ${m.titre}`;
+      const sm = document.createElement("small"); sm.textContent = m.defi ? `${m.exercices.length} défis, après les 32 exercices` : `${m.exercices.length} exercices`; c0.appendChild(sm);
       ["c", "e"].forEach(type => {
         const td = tr.insertCell();
         const cb = document.createElement("input"); cb.type = "checkbox"; cb.id = `ac-${p}-${type}-${k}`;
@@ -1398,7 +1435,7 @@ function majGrilles() {
   PARCOURS_ACCES.forEach(p => {
     const bloc = document.querySelector(`.ac-grille[data-parcours="${p}"]`);
     if (!bloc) return;
-    const n = LES_PARCOURS[p].liste.length;
+    const n = LES_PARCOURS[p].acces.length;
     ["c", "e"].forEach(type => {
       let nb = 0;
       for (let k = 1; k <= n; k++) {
@@ -1445,11 +1482,148 @@ $("ac-tout-ouvrir").addEventListener("click", () => { if (!BROUILLON) return; PA
 $("ac-tout-fermer").addEventListener("click", () => { if (!BROUILLON) return; PARCOURS_ACCES.forEach(p => { BROUILLON[p] = { c: new Set(), e: new Set() }; }); BROUILLON_SALE = true; majGrilles(); });
 $("ac-reinit").addEventListener("click", () => confirmer("reinit", $("ac-reinit"), "Revenir à « tout est ouvert »", () => { enregistrerAcces(null); }));
 
+/* ----- Avance individuelle : notions ouvertes en plus pour un élève, et liste de ceux qui ont fini ----- */
+const persoDe = id => (ETAT_PROF && ETAT_PROF.perso && ETAT_PROF.perso[id]) || {};
+const libelleNotion = (p, k) => { const m = LES_PARCOURS[p].acces[k - 1]; return m.defi ? "Défis" : `${k}. ${m.titre}`; };
+/* Notions dont les exercices sont ouverts à cet élève (classe + ouvertures en plus) ; null = tout est ouvert. */
+function notionsOuvertes(classe, id, p) {
+  const r = reglageDe(classe);
+  if (!r || !r[p]) return null;
+  const ouvertes = new Set(r[p].e);
+  (persoDe(id)[p] || []).forEach(k => ouvertes.add(k));
+  return ouvertes;
+}
+let AVANCE = null, AVANCE_ELEVE = null, AVANCE_SALE = false;
+function dessinerAvance() {
+  const zone = $("av-zone");
+  if (!ELEVE_FICHE || !BRUT) { zone.replaceChildren(); return; }
+  if (!ETAT_PROF) { zone.textContent = CLE ? "Chargement…" : ""; return; }
+  const eleve = BRUT.eleves.find(e => e.id === ELEVE_FICHE);
+  if (!eleve) { zone.replaceChildren(); return; }
+  if (AVANCE_ELEVE !== ELEVE_FICHE || !AVANCE_SALE) {
+    const sauve = persoDe(ELEVE_FICHE);
+    AVANCE = { python: new Set(sauve.python || []), algo: new Set(sauve.algo || []) };
+    AVANCE_ELEVE = ELEVE_FICHE; AVANCE_SALE = false;
+  }
+  zone.replaceChildren();
+  const base = reglageDe(eleve.classe);
+  PARCOURS_ACCES.forEach(p => {
+    const n = nbNotionsDe(p);
+    if (!n) return;
+    const bloc = document.createElement("div"); bloc.className = "av-parcours"; bloc.dataset.parcours = p;
+    const h = document.createElement("h3"); const titre = document.createElement("span"); titre.textContent = LES_PARCOURS[p].nom; h.appendChild(titre);
+    bloc.appendChild(h);
+    if (!base || !base[p]) {
+      const info = document.createElement("p"); info.className = "finis-vide"; info.textContent = `Tout est déjà ouvert pour ${eleve.classe}.`;
+      bloc.appendChild(info); zone.appendChild(bloc); return;
+    }
+    const ouvertesClasse = new Set(base[p].e);
+    const suivante = document.createElement("button"); suivante.type = "button"; suivante.className = "bouton"; suivante.id = `av-suivante-${p}`; suivante.textContent = "Ouvrir la suivante";
+    const prochaine = () => { for (let k = 1; k <= n; k++) if (!ouvertesClasse.has(k) && !AVANCE[p].has(k)) return k; return 0; };
+    suivante.disabled = !prochaine();
+    suivante.addEventListener("click", () => { const k = prochaine(); if (!k) return; AVANCE[p].add(k); AVANCE_SALE = true; dessinerAvance(); const b = $(`av-suivante-${p}`); if (b && !b.disabled) b.focus(); });
+    h.appendChild(suivante);
+    const liste = document.createElement("div"); liste.className = "av-notions";
+    for (let k = 1; k <= n; k++) {
+      const lab = document.createElement("label"); lab.className = "av-notion";
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.id = `av-${p}-${k}`;
+      if (ouvertesClasse.has(k)) { cb.checked = true; cb.disabled = true; lab.classList.add("classe"); lab.title = "Déjà ouverte par sa classe"; }
+      else {
+        cb.checked = AVANCE[p].has(k); lab.classList.toggle("perso", cb.checked);
+        cb.addEventListener("change", () => { if (cb.checked) AVANCE[p].add(k); else AVANCE[p].delete(k); AVANCE_SALE = true; lab.classList.toggle("perso", cb.checked); suivante.disabled = !prochaine(); });
+      }
+      lab.append(cb, document.createTextNode(libelleNotion(p, k)));
+      liste.appendChild(lab);
+    }
+    bloc.appendChild(liste);
+    zone.appendChild(bloc);
+  });
+}
+const enOrdre = ens => [...ens].sort((a, b) => a - b);
+async function enregistrerPerso(id, python, algo, msgId) {
+  dire(msgId, "Enregistrement…");
+  try {
+    const d = await appelProf({ action: "profAccesEleve", id, python, algo });
+    if (!d.ok) { dire(msgId, texteErreurProf(d.erreur), "ko"); return false; }
+    ETAT_PROF = d;
+    if (id === ELEVE_FICHE) AVANCE_SALE = false;
+    dessinerAvance(); dessinerAccesFinis();
+    dire(msgId, `Enregistré (${heureCourte()}). L'élève le verra en moins de 2 minutes.`, "ok");
+    return true;
+  } catch { dire(msgId, "Le script ne répond pas. Vérifiez la connexion, puis réessayez.", "ko"); return false; }
+}
+$("av-enregistrer").addEventListener("click", async () => {
+  if (!ELEVE_FICHE || !AVANCE) { dire("av-msg", "Choisissez d'abord un élève.", "ko"); return; }
+  const b = $("av-enregistrer");
+  b.disabled = true;
+  await enregistrerPerso(ELEVE_FICHE, enOrdre(AVANCE.python), enOrdre(AVANCE.algo), "av-msg");
+  b.disabled = false;
+});
+$("av-retirer").addEventListener("click", async () => {
+  if (!ELEVE_FICHE || !ETAT_PROF) { dire("av-msg", "Choisissez d'abord un élève.", "ko"); return; }
+  await enregistrerPerso(ELEVE_FICHE, [], [], "av-msg");
+});
+
+/* Qui a réussi tous les exercices qui lui sont ouverts alors qu'il en reste de fermés ? */
+function elevesQuiOntFini() {
+  const reussis = {};
+  BRUT.essais.forEach(r => { if (r[3]) (reussis[r[1]] = reussis[r[1]] || new Set()).add(r[2]); });
+  const res = [];
+  BRUT.eleves.forEach(e => {
+    PARCOURS_ACCES.forEach(p => {
+      const liste = LES_PARCOURS[p].acces;
+      if (!liste.length) return;
+      const ouvertes = notionsOuvertes(e.classe, e.id, p), fait = reussis[e.id] || new Set(), fermees = [];
+      let nbOuvertes = 0, tout = true;
+      liste.forEach((m, i) => {
+        if (ouvertes && !ouvertes.has(i + 1)) { fermees.push(i + 1); return; }
+        nbOuvertes++;
+        if (!m.exercices.every(x => fait.has(x.id))) tout = false;
+      });
+      if (nbOuvertes && tout && fermees.length) res.push({ eleve: e, p, suivante: fermees[0], nbOuvertes, total: liste.length });
+    });
+  });
+  return res.sort((a, b) => a.eleve.classe.localeCompare(b.eleve.classe, "fr") || nomComplet(a.eleve).localeCompare(nomComplet(b.eleve), "fr") || a.p.localeCompare(b.p));
+}
+function dessinerAccesFinis() {
+  const t = $("t-finis");
+  t.replaceChildren();
+  if (!ETAT_PROF || !BRUT) return;
+  const tete = t.createTHead().insertRow();
+  ["Élève", "Classe", "Parcours", "Avancement", ""].forEach(x => { const th = document.createElement("th"); th.textContent = x; tete.appendChild(th); });
+  const corps = t.createTBody();
+  const liste = elevesQuiOntFini();
+  if (!liste.length) {
+    const td = corps.insertRow().insertCell(); td.colSpan = 5; td.className = "vide";
+    td.textContent = "Personne n'a encore fini ce qui est ouvert.";
+    return;
+  }
+  liste.forEach(({ eleve, p, suivante, nbOuvertes, total }) => {
+    const tr = corps.insertRow(); tr.dataset.eleve = eleve.id; tr.dataset.parcours = p;
+    tr.insertCell().textContent = nomComplet(eleve);
+    tr.insertCell().textContent = eleve.classe;
+    tr.insertCell().textContent = LES_PARCOURS[p].nom;
+    tr.insertCell().textContent = `${nbOuvertes} notion${nbOuvertes > 1 ? "s" : ""} sur ${total}, toutes réussies`;
+    const b = document.createElement("button"); b.type = "button"; b.className = "bouton";
+    b.textContent = `Ouvrir : ${libelleNotion(p, suivante)}`;
+    b.addEventListener("click", async () => {
+      b.disabled = true;
+      const sauve = persoDe(eleve.id);
+      const python = new Set(sauve.python || []), algo = new Set(sauve.algo || []);
+      (p === "python" ? python : algo).add(suivante);
+      const ok = await enregistrerPerso(eleve.id, enOrdre(python), enOrdre(algo), "finis-msg");
+      if (ok) dire("finis-msg", `« ${libelleNotion(p, suivante)} » est ouverte pour ${nomComplet(eleve)} (${heureCourte()}).`, "ok");
+      else b.disabled = false;
+    });
+    tr.insertCell().appendChild(b);
+  });
+}
+
 /* ---------------- Onglets ---------------- */
 function montrerVue(v) {
   document.querySelectorAll(".onglet").forEach(o => { o.setAttribute("aria-selected", String(o.dataset.vue === v)); if (o.dataset.vue === v) o.scrollIntoView({ block: "nearest", inline: "nearest" }); });
   ["ensemble", "eleves", "exercices", "fiche", "evaluation", "acces"].forEach(x => $("vue-" + x).hidden = x !== v);
-  if (v === "acces") chargerEtatProf();
+  if (v === "acces" || v === "fiche") chargerEtatProf();
   Object.values(graphes).forEach(g => g.resize());
 }
 document.querySelectorAll(".onglet").forEach(o => o.addEventListener("click", () => montrerVue(o.dataset.vue)));
