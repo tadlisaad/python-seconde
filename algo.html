@@ -639,6 +639,7 @@ function memoriser(valeur) {
 }
 
 function choisir(id) {
+  if (!ACCES.exo(id)) return;   // exercice fermé par le professeur
   if (S.exo && S.exo.type === "python") { S.codes[S.exo.id] = editeur.getValue(); sauver(); }
   const exo = EXOS.find(e => e.id === id);
   S.exo = exo;
@@ -812,7 +813,8 @@ function verifierSansPython() {
 }
 function boutonSuivant(exo) {
   const idx = EXOS.findIndex(e => e.id === exo.id);
-  const suivant = EXOS.slice(idx + 1).find(e => !S.reussis.has(e.id)) || EXOS.find(e => !S.reussis.has(e.id));
+  const aFaire = e => ACCES.exo(e.id) && !S.reussis.has(e.id);   // seulement les exercices ouverts par le professeur
+  const suivant = EXOS.slice(idx + 1).find(aFaire) || EXOS.find(aFaire);
   const ligne = document.createElement("div");
   ligne.className = "actions";
   if (suivant) {
@@ -824,7 +826,7 @@ function boutonSuivant(exo) {
   } else {
     const p = document.createElement("p");
     p.style.margin = "0";
-    p.textContent = "Tu as réussi tous les exercices du parcours. Bravo !";
+    p.textContent = EXOS.every(e => S.reussis.has(e.id)) ? "Tu as réussi tous les exercices du parcours. Bravo !" : "Tu as réussi tous les exercices ouverts pour le moment. Ton professeur ouvrira la suite bientôt.";
     ligne.appendChild(p);
   }
   return ligne;
