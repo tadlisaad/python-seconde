@@ -300,7 +300,7 @@ details.cours summary::-webkit-details-marker { display: none; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
 <script src="config.js?v=20261102a"></script>
-<script src="acces.js?v=20261102a"></script>
+<script src="acces.js?v=20261111a"></script>
 <script src="ms.js?v=20261102b"></script>
 <script src="exercices.js?v=20261102c"></script>
 <script src="defis.js?v=20261106a"></script>
@@ -460,7 +460,7 @@ function ouvrir(session, serveur) {
     // Session reprise : on resynchronise en arrière-plan ce qui a été fait sur un autre poste.
     appelServeur({ action: "connexion", id: session.id, code: session.code }).then(d => {
       if (!d.ok) return;
-      if (ACCES.reinit(d, session.id).python) remiseAZero();
+      appliquerReinit(ACCES.reinit(d, session.id));
       (d.reussis || []).filter(x => IDS.has(x)).forEach(x => S.reussis.add(x));
       Object.entries(d.codes || {}).filter(([exo]) => IDS.has(exo)).forEach(([exo, code]) => { S.tentes.add(exo); if (!(exo in S.codes)) S.codes[exo] = code; });
       sauver(); ACCES.sync(d); majAcces(); majJauge();
@@ -475,7 +475,7 @@ function ouvrir(session, serveur) {
   majJauge();
   majStatut();
   majAcces();
-  if (!DEMO && !suiviAcces) { suiviAcces = true; ACCES.suivre(() => appelServeur({ action: "connexion", id: S.eleve.id, code: S.eleve.code }), (d, change) => { if (ACCES.reinit(d, S.eleve.id).python) remiseAZero(); else if (change) majAcces(); }); }
+  if (!DEMO && !suiviAcces) { suiviAcces = true; ACCES.suivre(() => appelServeur({ action: "connexion", id: S.eleve.id, code: S.eleve.code }), (d, change) => { if (appliquerReinit(ACCES.reinit(d, S.eleve.id))) { /* rien d'autre à faire */ } else if (change) majAcces(); }); }
   envoyer();
 }
 
@@ -496,6 +496,16 @@ function remiseAZero() {
   S.reussis = new Set(); S.tentes = new Set(); S.codes = {}; S.file = []; S.temps = {}; S.indices = {};
   S.exo = null;
   sauver(); majJauge(); majStatut(); majAcces();
+}
+/* Ce que le professeur a remis à zéro (acces.js l'a déjà retiré de la mémoire du poste) : le parcours entier ou seulement certaines parties. */
+function appliquerReinit(fait) {
+  if (fait.python) { remiseAZero(); return true; }
+  const parties = (fait.parties || {}).python;
+  if (!parties) return false;
+  ACCES.retirer(S, "python", parties);
+  if (S.exo && parties.some(k => new RegExp("^m" + k + "e\\d+$").test(S.exo.id))) S.exo = null;
+  sauver(); majJauge(); majStatut(); majAcces();
+  return true;
 }
 /* Réglage du professeur (acces.js) : notions fermées grisées, cours masqué, message si rien n'est ouvert. */
 function majCours(exo) {

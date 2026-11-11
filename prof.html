@@ -354,13 +354,14 @@ table.sans-clic tbody tr:hover td { background: none; }
       </div>
       <div class="panneau" id="f-reinit">
         <h2>Remettre à zéro</h2>
-        <p class="sous">Efface les exercices de cet élève (réussites, essais, codes) pour qu'il reparte de zéro. Les essais effacés sont copiés dans l'onglet « Essais_archives » du Google Sheet. Ses évaluations et ses notes ne sont pas touchées. Son poste se remet à zéro à sa prochaine connexion.</p>
+        <p class="sous">Efface les exercices de cet élève (réussites, essais, codes) pour qu'il reparte de zéro, pour tout un parcours ou seulement une partie (une notion). Les essais effacés sont copiés dans l'onglet « Essais_archives » du Google Sheet. Ses évaluations et ses notes ne sont pas touchées. Son poste se remet à zéro à sa prochaine connexion.</p>
         <div class="reinit-ligne">
           <select id="reinit-parcours" aria-label="Ce qu'il faut remettre à zéro">
             <option value="tous">Python et algorigrammes</option>
             <option value="python">Python seulement</option>
             <option value="algo">Algorigrammes seulement</option>
           </select>
+          <select id="reinit-partie" aria-label="Partie à remettre à zéro"><option value="">Tout</option></select>
           <button class="bouton" id="b-reinit" type="button">Remettre à zéro</button>
           <span class="ac-info" id="reinit-msg" role="status" aria-live="polite"></span>
         </div>
@@ -425,6 +426,22 @@ table.sans-clic tbody tr:hover td { background: none; }
           <button class="bouton discret" id="ac-reinit" type="button">Revenir à « tout est ouvert »</button>
           <span class="ac-info" id="ac-msg" role="status" aria-live="polite"></span>
         </div>
+      </div>
+
+      <div class="panneau" id="ac-reinit-classe">
+        <h2>Remettre à zéro une partie pour une classe</h2>
+        <p class="sous">Efface les exercices (réussites, essais, codes) de tous les élèves de la classe choisie, pour un parcours entier ou une seule partie (une notion). Les essais effacés sont copiés dans l'onglet « Essais_archives » du Google Sheet. Les évaluations et les notes ne sont pas touchées. Les postes se remettent à zéro en moins de 2 minutes s'ils sont connectés, sinon à la prochaine connexion.</p>
+        <div class="reinit-ligne">
+          <select id="rc-classe" aria-label="Classe"></select>
+          <select id="rc-parcours" aria-label="Parcours">
+            <option value="python">Python</option>
+            <option value="algo">Algorigrammes</option>
+            <option value="tous">Python et algorigrammes</option>
+          </select>
+          <select id="rc-partie" aria-label="Partie à remettre à zéro"><option value="">Tout le parcours</option></select>
+          <button class="bouton" id="b-reinit-classe" type="button">Remettre à zéro</button>
+        </div>
+        <p class="ac-message" id="rc-msg" role="status" aria-live="polite"></p>
       </div>
 
       <div class="panneau" id="ac-finis">
@@ -975,6 +992,7 @@ function dessinerFiche(liste) {
   tableTriable($("t-fiche"), cols, lignes, { cle: "num", sens: "asc" });
   $("f-codes").innerHTML = '<button class="bouton" id="b-codes" type="button">Afficher le code de ses essais</button>';
   $("b-codes").addEventListener("click", chargerCodes);
+  remplirParties($("reinit-parcours"), $("reinit-partie"), "Tout le parcours");
   dessinerAvance();
 }
 
@@ -982,19 +1000,60 @@ $("b-reinit").addEventListener("click", ev => {
   if (!ELEVE_FICHE) { dire("reinit-msg", "Choisissez d'abord un élève.", "ko"); return; }
   confirmer("reinit", ev.currentTarget, "Remettre à zéro", reinitialiserEleve);
 });
+/* Liste des parties (notions) d'un parcours dans un menu ; « Tout » pour Python et algorigrammes ensemble. */
+function remplirParties(selParcours, selPartie, toutLibelle) {
+  const p = selParcours.value, avant = selPartie.value;
+  selPartie.replaceChildren(new Option(p === "tous" ? "Tout" : toutLibelle, ""));
+  if (p !== "tous") for (let k = 1; k <= nbNotionsDe(p); k++) selPartie.add(new Option(libelleNotion(p, k), String(k)));
+  selPartie.value = [...selPartie.options].some(o => o.value === avant) ? avant : "";
+  selPartie.disabled = p === "tous";
+}
+const decrireReinit = (p, partie) => partie ? `la partie « ${libelleNotion(p, Number(partie))} » (${LES_PARCOURS[p].nom})` : p === "tous" ? "tout (Python et algorigrammes)" : `tout le parcours ${LES_PARCOURS[p].nom}`;
+const phraseEffaces = n => n ? `${n} essai${n > 1 ? "s" : ""} effacé${n > 1 ? "s" : ""}, copiés dans « Essais_archives ». ` : "Aucun essai à effacer. ";
+$("reinit-parcours").addEventListener("change", () => remplirParties($("reinit-parcours"), $("reinit-partie"), "Tout le parcours"));
 async function reinitialiserEleve() {
-  const b = $("b-reinit"), id = ELEVE_FICHE, parcours = $("reinit-parcours").value;
+  const b = $("b-reinit"), id = ELEVE_FICHE, parcours = $("reinit-parcours").value, partie = $("reinit-partie").value;
   b.disabled = true; b.textContent = "Remettre à zéro";
   dire("reinit-msg", "Remise à zéro…");
   try {
-    const d = await appelProf({ action: "profReinitEleve", id, parcours });
+    const d = await appelProf({ action: "profReinitEleve", id, parcours, notions: partie ? [Number(partie)] : [] });
     if (!d.ok) dire("reinit-msg", texteErreurProf(d.erreur), "ko");
     else {
       if (DEMO) toutDessiner(); else await charger();   // en démonstration, charger() régénérerait les données d'exemple
-      const n = d.supprimes;
-      dire("reinit-msg", (n ? `${n} essai${n > 1 ? "s" : ""} effacé${n > 1 ? "s" : ""}, copiés dans « Essais_archives ». ` : "Aucun essai à effacer. ") + `Son poste repartira de zéro à sa prochaine connexion. (${heureCourte()})`, "ok");
+      dire("reinit-msg", phraseEffaces(d.supprimes) + `Son poste repartira de zéro ${partie ? "pour cette partie " : ""}à sa prochaine connexion. (${heureCourte()})`, "ok");
     }
   } catch { dire("reinit-msg", "Le script ne répond pas. Vérifiez la connexion, puis réessayez.", "ko"); }
+  b.disabled = false;
+}
+
+/* Même chose pour une classe entière (onglet « Accès élèves »). */
+function dessinerReinitClasse() {
+  const sel = $("rc-classe"), avant = sel.value;
+  if (!ETAT_PROF) return;
+  sel.replaceChildren(...ETAT_PROF.classes.map(c => new Option(c, c)), ...(ETAT_PROF.classes.length > 1 ? [new Option("Toutes les classes", "*")] : []));
+  if ([...sel.options].some(o => o.value === avant)) sel.value = avant;
+  remplirParties($("rc-parcours"), $("rc-partie"), "Tout le parcours");
+}
+$("rc-parcours").addEventListener("change", () => { remplirParties($("rc-parcours"), $("rc-partie"), "Tout le parcours"); dire("rc-msg", ""); CONFIRMATION = null; $("b-reinit-classe").textContent = "Remettre à zéro"; });
+["rc-classe", "rc-partie"].forEach(id => $(id).addEventListener("change", () => { dire("rc-msg", ""); CONFIRMATION = null; $("b-reinit-classe").textContent = "Remettre à zéro"; }));
+$("b-reinit-classe").addEventListener("click", ev => {
+  const classe = $("rc-classe").value;
+  if (!classe) { dire("rc-msg", "Aucune classe : actualisez la page.", "ko"); return; }
+  if (CONFIRMATION !== "reinit-classe") dire("rc-msg", `Vous allez effacer ${decrireReinit($("rc-parcours").value, $("rc-partie").value)} pour ${classe === "*" ? "TOUTES les classes" : "la classe " + classe}. Cliquez sur « Confirmer ? » pour valider.`, "ko");
+  confirmer("reinit-classe", ev.currentTarget, "Remettre à zéro", reinitialiserClasse);
+});
+async function reinitialiserClasse() {
+  const b = $("b-reinit-classe"), classe = $("rc-classe").value, parcours = $("rc-parcours").value, partie = $("rc-partie").value;
+  b.disabled = true; b.textContent = "Remettre à zéro";
+  dire("rc-msg", "Remise à zéro…");
+  try {
+    const d = await appelProf({ action: "profReinitClasse", classe, parcours, notions: partie ? [Number(partie)] : [] });
+    if (!d.ok) dire("rc-msg", texteErreurProf(d.erreur), "ko");
+    else {
+      if (DEMO) toutDessiner(); else await charger();
+      dire("rc-msg", phraseEffaces(d.supprimes) + `${d.eleves} élève${d.eleves > 1 ? "s" : ""} concerné${d.eleves > 1 ? "s" : ""} : ${decrireReinit(parcours, partie)}. (${heureCourte()})`, "ok");
+    }
+  } catch { dire("rc-msg", "Le script ne répond pas. Vérifiez la connexion, puis réessayez.", "ko"); }
   b.disabled = false;
 }
 
@@ -1212,6 +1271,7 @@ const ERREURS_PROF = {
   code_trop_court: "4 caractères minimum.",
   eleve_inconnu: "Élève introuvable dans la feuille « Eleves » : actualisez la page.",
   parcours_inconnu: "Choix inconnu du script : mettez-le à jour.",
+  notions_invalides: "Numéro de partie inconnu : mettez le script à jour.",
   trop_de_reglages: "Trop de réglages individuels enregistrés : retirez-en quelques-uns.",
   "action inconnue": "Le script Google n'est pas à jour : collez la nouvelle version de Code.gs et redéployez-la (Déployer > Gérer les déploiements > nouvelle version)."
 };
@@ -1228,11 +1288,14 @@ function demoProf(c) {
     PARCOURS_ACCES.forEach(p => { if (Array.isArray(c[p]) && c[p].length) o[p] = c[p]; });
     if (Object.keys(o).length) DEMO_PROF.perso[c.id] = o; else delete DEMO_PROF.perso[c.id];
   }
-  else if (c.action === "profReinitEleve") {
-    const garde = e => !(e[1] === c.id && (c.parcours === "tous" || (c.parcours === "python" ? /^m/.test(e[2]) : /^g/.test(e[2]))));
+  else if (c.action === "profReinitEleve" || c.action === "profReinitClasse") {
+    const classeDe = {}; BRUT.eleves.forEach(e => { classeDe[e.id] = e.classe; });
+    const vise = e => (c.action === "profReinitEleve" ? e[1] === c.id : (c.classe === "*" || classeDe[e[1]] === c.classe))
+      && (c.parcours === "tous" || (c.parcours === "python" ? /^m/ : /^g/).test(e[2]))
+      && (!(c.notions || []).length || c.notions.includes(Number((/\d+/.exec(e[2]) || [])[0])));
     const avant = BRUT.essais.length;
-    BRUT.essais = BRUT.essais.filter(garde);
-    return { ok: true, supprimes: avant - BRUT.essais.length, parcours: c.parcours };
+    BRUT.essais = BRUT.essais.filter(e => !vise(e));
+    return { ok: true, supprimes: avant - BRUT.essais.length, parcours: c.parcours, eleves: c.action === "profReinitClasse" ? BRUT.eleves.filter(e => c.classe === "*" || e.classe === c.classe).length : 1 };
   }
   return { ok: true, acces: DEMO_PROF.acces, perso: DEMO_PROF.perso, ouvertes: DEMO_PROF.ouvertes, classes: [...new Set(BRUT.eleves.map(e => e.classe))].sort(),
     evaluations: LISTE_EVALS.map(e => e.id), codeDeblocageDefini: DEMO_PROF.code };
@@ -1267,6 +1330,7 @@ async function chargerEtatProf() {
   dessinerAccesEval();
   dessinerAccesContenus();
   dessinerAccesFinis();
+  dessinerReinitClasse();
   dessinerAvance();
 }
 
