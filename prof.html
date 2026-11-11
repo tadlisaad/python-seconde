@@ -141,6 +141,11 @@ select#choix-eval { border: 1.5px solid var(--trait); border-radius: 8px; paddin
 .detail-grille { display: grid; gap: .6rem; }
 
 /* Fiche élève */
+#t-ac-eval-perso td, #t-ac-eval-perso th { cursor: default; }
+#t-ac-eval-perso th::after { content: none !important; }
+#t-ac-eval-perso .bouton { padding: .3rem .7rem; font-size: .88rem; }
+.ev-etat { margin: .3rem 0 .8rem; }
+.sous-titre { font-size: 1rem; font-weight: 700; margin: 1.4rem 0 .5rem; }
 .av-parcours { margin: .4rem 0 1rem; }
 .av-parcours h3 { font-size: 1rem; font-weight: 700; margin: 0 0 .5rem; display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; justify-content: space-between; }
 .av-notions { display: flex; flex-wrap: wrap; gap: .4rem; }
@@ -342,6 +347,17 @@ table.sans-clic tbody tr:hover td { background: none; }
         <p class="sous">Tous ses essais, du plus récent au plus ancien.</p>
         <div id="f-codes"><button class="bouton" id="b-codes" type="button">Afficher le code de ses essais</button></div>
       </div>
+      <div class="panneau" id="f-eval">
+        <h2>Évaluation pour cet élève</h2>
+        <p class="sous">Ouvre une évaluation à cet élève seulement, sans l'ouvrir pour sa classe. Elle passe avant l'évaluation de sa classe pour lui. Fermer ne coupe pas l'élève qui compose déjà : il peut rendre sa copie. Le code de déblocage reste celui de l'onglet Accès élèves.</p>
+        <div class="reinit-ligne">
+          <select id="fe-eval" aria-label="Évaluation à ouvrir pour cet élève"></select>
+          <button class="bouton plein" id="fe-ouvrir" type="button">Ouvrir pour lui</button>
+          <button class="bouton" id="fe-fermer" type="button">Fermer pour lui</button>
+        </div>
+        <p class="ev-etat" id="fe-etat"></p>
+        <p class="ac-message" id="fe-msg" role="status" aria-live="polite"></p>
+      </div>
       <div class="panneau" id="f-avance">
         <h2>Avance individuelle</h2>
         <p class="sous">Ouvrez à cet élève des notions que sa classe n'a pas encore, sans toucher au réglage de la classe. Il les voit en moins de 2 minutes. Ce qui est déjà ouvert par la classe est grisé.</p>
@@ -397,7 +413,7 @@ table.sans-clic tbody tr:hover td { background: none; }
     <section class="vue" id="vue-acces" hidden>
       <div class="panneau">
         <h2>Évaluations</h2>
-        <p class="sous">Une évaluation ne peut être commencée que dans les classes pour lesquelles elle est ouverte. Fermer ne coupe pas les élèves qui composent déjà : ils peuvent rendre leur copie, mais personne ne peut plus commencer.</p>
+        <p class="sous">Une évaluation ne peut être commencée que dans les classes pour lesquelles elle est ouverte (ou par un élève à qui vous l'avez ouverte seul, dans sa fiche). Fermer ne coupe pas les élèves qui composent déjà : ils peuvent rendre leur copie, mais personne ne peut plus commencer.</p>
         <div class="ac-code" id="ac-code">
           <label for="ac-code-saisie">Code de déblocage <small>(que vous tapez sur le poste d'un élève bloqué ; ne le donnez pas aux élèves)</small></label>
           <div class="ac-ligne">
@@ -408,6 +424,8 @@ table.sans-clic tbody tr:hover td { background: none; }
         </div>
         <div class="defile"><table class="donnees sans-clic" id="t-ac-eval"></table></div>
         <p class="ac-message" id="ac-msg-eval" role="status" aria-live="polite"></p>
+        <h3 class="sous-titre">Ouvertes pour un seul élève</h3>
+        <div class="defile"><table class="donnees sans-clic" id="t-ac-eval-perso"></table></div>
       </div>
 
       <div class="panneau">
@@ -993,6 +1011,7 @@ function dessinerFiche(liste) {
   $("f-codes").innerHTML = '<button class="bouton" id="b-codes" type="button">Afficher le code de ses essais</button>';
   $("b-codes").addEventListener("click", chargerCodes);
   remplirParties($("reinit-parcours"), $("reinit-partie"), "Tout le parcours");
+  dessinerEvalEleve();
   dessinerAvance();
 }
 
@@ -1278,11 +1297,14 @@ const ERREURS_PROF = {
 const texteErreurProf = e => ERREURS_PROF[e] || "Le script a répondu : " + e;
 
 /* Sans serveur (démonstration), les réglages vivent en mémoire pour que l'écran reste manipulable. */
-const DEMO_PROF = { acces: {}, perso: {}, ouvertes: { "2nde A": "eval1" }, code: true };
+const DEMO_PROF = { acces: {}, perso: {}, evalPerso: {}, ouvertes: { "2nde A": "eval1" }, code: true };
 function demoProf(c) {
   if (c.action === "profAcces") c.classes.forEach(cl => { if (c.acces === null) delete DEMO_PROF.acces[cl]; else DEMO_PROF.acces[cl] = c.acces; });
   else if (c.action === "profEval") c.classes.forEach(cl => { if (c.op === "ouvrir") DEMO_PROF.ouvertes[cl] = c.evaluation; else delete DEMO_PROF.ouvertes[cl]; });
   else if (c.action === "profCodeDeblocage") DEMO_PROF.code = true;
+  else if (c.action === "profEvalEleve") {
+    if (c.op === "ouvrir") DEMO_PROF.evalPerso[c.id] = c.evaluation; else delete DEMO_PROF.evalPerso[c.id];
+  }
   else if (c.action === "profAccesEleve") {
     const o = {};
     PARCOURS_ACCES.forEach(p => { if (Array.isArray(c[p]) && c[p].length) o[p] = c[p]; });
@@ -1297,7 +1319,7 @@ function demoProf(c) {
     BRUT.essais = BRUT.essais.filter(e => !vise(e));
     return { ok: true, supprimes: avant - BRUT.essais.length, parcours: c.parcours, eleves: c.action === "profReinitClasse" ? BRUT.eleves.filter(e => c.classe === "*" || e.classe === c.classe).length : 1 };
   }
-  return { ok: true, acces: DEMO_PROF.acces, perso: DEMO_PROF.perso, ouvertes: DEMO_PROF.ouvertes, classes: [...new Set(BRUT.eleves.map(e => e.classe))].sort(),
+  return { ok: true, acces: DEMO_PROF.acces, perso: DEMO_PROF.perso, evalPerso: DEMO_PROF.evalPerso, ouvertes: DEMO_PROF.ouvertes, classes: [...new Set(BRUT.eleves.map(e => e.classe))].sort(),
     evaluations: LISTE_EVALS.map(e => e.id), codeDeblocageDefini: DEMO_PROF.code };
 }
 async function appelProf(corps) {
@@ -1331,6 +1353,8 @@ async function chargerEtatProf() {
   dessinerAccesContenus();
   dessinerAccesFinis();
   dessinerReinitClasse();
+  dessinerEvalPerso();
+  dessinerEvalEleve();
   dessinerAvance();
 }
 
@@ -1545,6 +1569,67 @@ $("ac-enregistrer").addEventListener("click", () => { if (BROUILLON) enregistrer
 $("ac-tout-ouvrir").addEventListener("click", () => { if (!BROUILLON) return; PARCOURS_ACCES.forEach(p => { BROUILLON[p] = { c: toutesNotions(p), e: toutesNotions(p) }; }); BROUILLON_SALE = true; majGrilles(); });
 $("ac-tout-fermer").addEventListener("click", () => { if (!BROUILLON) return; PARCOURS_ACCES.forEach(p => { BROUILLON[p] = { c: new Set(), e: new Set() }; }); BROUILLON_SALE = true; majGrilles(); });
 $("ac-reinit").addEventListener("click", () => confirmer("reinit", $("ac-reinit"), "Revenir à « tout est ouvert »", () => { enregistrerAcces(null); }));
+
+/* ----- Évaluation ouverte pour un seul élève ----- */
+const evalPersoDe = id => (ETAT_PROF && ETAT_PROF.evalPerso && ETAT_PROF.evalPerso[id]) || null;
+const nomEleve = id => { const e = BRUT && BRUT.eleves.find(x => x.id === id); return e ? nomComplet(e) : id; };
+async function actionEvalEleve(op, id, evaluation, msgId) {
+  dire(msgId, "Enregistrement…");
+  try {
+    const d = await appelProf({ action: "profEvalEleve", id, op, evaluation });
+    if (!d.ok) { dire(msgId, texteErreurProf(d.erreur), "ko"); return; }
+    ETAT_PROF = d;
+    dessinerEvalEleve(); dessinerEvalPerso();
+    dire(msgId, op === "ouvrir" ? `« ${titreEval(evaluation)} » est ouverte pour ${nomEleve(id)} seulement. (${heureCourte()})` : `Ouverture individuelle fermée pour ${nomEleve(id)}. (${heureCourte()})`, "ok");
+  } catch { dire(msgId, "Le script ne répond pas. Vérifiez la connexion, puis réessayez.", "ko"); }
+}
+function dessinerEvalEleve() {
+  const sel = $("fe-eval"), etat = $("fe-etat");
+  if (!ELEVE_FICHE || !BRUT) { etat.textContent = ""; return; }
+  if (!ETAT_PROF) { etat.textContent = CLE ? "Chargement…" : ""; return; }
+  const eleve = BRUT.eleves.find(e => e.id === ELEVE_FICHE);
+  if (!eleve) return;
+  const evals = LISTE_EVALS.filter(e => ETAT_PROF.evaluations.includes(e.id));
+  const perso = evalPersoDe(eleve.id), classe = (ETAT_PROF.ouvertes || {})[eleve.classe] || null;
+  const avant = sel.value;
+  sel.replaceChildren(...evals.map(e => new Option(e.titre, e.id)));
+  sel.value = evals.some(e => e.id === avant) ? avant : (perso || classe || (evals[0] && evals[0].id) || "");
+  const code = ETAT_PROF.codeDeblocageDefini;
+  $("fe-ouvrir").disabled = !code || !evals.length;
+  $("fe-ouvrir").title = code ? "" : "Définissez d'abord le code de déblocage (onglet Accès élèves)";
+  $("fe-fermer").disabled = !perso;
+  const lignes = (BRUT.evaluations && BRUT.evaluations.lignes) || [];
+  const rendue = id => lignes.some(l => l[1] === eleve.id && l[2] === id && l[3] === "rendu");
+  const morceaux = [];
+  morceaux.push(perso ? `Ouverte pour lui seul : « ${titreEval(perso)} ».` : "Aucune ouverture individuelle.");
+  morceaux.push(classe ? `Sa classe (${eleve.classe}) a « ${titreEval(classe)} » ouverte.` : `Aucune évaluation ouverte pour sa classe (${eleve.classe}).`);
+  const cible = sel.value;
+  if (cible && rendue(cible)) morceaux.push(`Il a déjà rendu « ${titreEval(cible)} » : une copie rendue n'est pas rejouable.`);
+  etat.textContent = morceaux.join(" ");
+}
+$("fe-ouvrir").addEventListener("click", () => {
+  if (!ELEVE_FICHE) { dire("fe-msg", "Choisissez d'abord un élève.", "ko"); return; }
+  actionEvalEleve("ouvrir", ELEVE_FICHE, $("fe-eval").value, "fe-msg");
+});
+$("fe-fermer").addEventListener("click", () => { if (ELEVE_FICHE) actionEvalEleve("fermer", ELEVE_FICHE, "", "fe-msg"); });
+$("fe-eval").addEventListener("change", dessinerEvalEleve);
+function dessinerEvalPerso() {
+  const t = $("t-ac-eval-perso");
+  t.replaceChildren();
+  if (!ETAT_PROF || !BRUT) return;
+  const entete = t.createTHead().insertRow();
+  ["Élève", "Classe", "Évaluation", ""].forEach(x => { const th = document.createElement("th"); th.textContent = x; entete.appendChild(th); });
+  const corps = t.createTBody();
+  const ids = Object.keys(ETAT_PROF.evalPerso || {}).filter(id => BRUT.eleves.some(e => e.id === id));
+  if (!ids.length) { const td = corps.insertRow().insertCell(); td.colSpan = 4; td.className = "vide"; td.textContent = "Aucune évaluation ouverte pour un seul élève."; return; }
+  ids.sort((a, b) => nomEleve(a).localeCompare(nomEleve(b), "fr")).forEach(id => {
+    const e = BRUT.eleves.find(x => x.id === id), tr = corps.insertRow(); tr.dataset.eleve = id;
+    tr.insertCell().textContent = nomComplet(e); tr.insertCell().textContent = e.classe; tr.insertCell().textContent = titreEval(ETAT_PROF.evalPerso[id]);
+    const b = document.createElement("button"); b.type = "button"; b.className = "bouton"; b.textContent = "Fermer";
+    b.addEventListener("click", () => confirmer("fermer-perso:" + id, b, "Fermer", () => actionEvalEleve("fermer", id, "", "ac-msg-eval")));
+    tr.insertCell().appendChild(b);
+  });
+}
 
 /* ----- Avance individuelle : notions ouvertes en plus pour un élève, et liste de ceux qui ont fini ----- */
 const persoDe = id => (ETAT_PROF && ETAT_PROF.perso && ETAT_PROF.perso[id]) || {};
