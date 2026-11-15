@@ -193,7 +193,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 1.8rem 16px 4rem; display: gr
       <section class="carte evals" id="evaluations">
         <div class="etape">En classe</div>
         <h2><svg class="icone-carte" viewBox="0 0 40 40" aria-hidden="true"><rect x="7" y="4" width="26" height="33" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 14h14M13 21h14M13 28h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Évaluations</h2>
-        <p>Ton professeur ouvre l'évaluation en classe, le jour prévu.</p>
+        <p>Ton professeur ouvre l'évaluation, ou un bilan d'entraînement, en classe, le jour prévu.</p>
         <div id="etat-eval"><span class="chargement">Vérification…</span></div>
       </section>
     </div>
@@ -216,7 +216,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 1.8rem 16px 4rem; display: gr
 <script src="ms.js?v=20261102b"></script>
 <script src="exercices.js?v=20261102c"></script>
 <script src="algorigrammes.js?v=20261014d"></script>
-<script src="evaluations.js?v=20261014d"></script>
+<script src="evaluations.js?v=20261115a"></script>
 <script>
 "use strict";
 const URL_SERVEUR = (window.CONFIG && CONFIG.url || "").trim();
@@ -276,9 +276,9 @@ async function verifierEval(session) {
     const meta = ev && (window.EVALUATIONS || []).find(e => e.id === ev.id);
     const titre = meta ? meta.titre : "Évaluation";
     if (ev && ev.rendu) {
-      etatEval(`<strong></strong><span>Copie rendue.</span>${ev.note != null ? `<span class="note">${String(ev.note).replace(".", ",")} / 20</span>` : ""}`, "rendu");
+      etatEval(`<strong></strong><span>${meta && meta.entrainement ? "Bilan terminé (il ne compte pas dans ta note)." : "Copie rendue."}</span>${ev.note != null ? `<span class="note">${String(ev.note).replace(".", ",")} / 20</span>` : ""}`, "rendu");
     } else if (ev) {
-      etatEval(`<strong></strong><span>${meta ? meta.duree + " min · " + meta.nb + " questions · " : ""}Attends le signal de ton professeur.</span><a class="bouton plein" href="eval.html">${ev.debut ? "Reprendre l'évaluation" : "Commencer l'évaluation"}</a>`, "ouvert");
+      etatEval(`<strong></strong><span>${meta ? meta.duree + " min · " + meta.nb + " questions · " : ""}Attends le signal de ton professeur.</span><a class="bouton plein" href="eval.html">${ev.debut ? "Reprendre" : "Commencer"} ${meta && meta.entrainement ? "le bilan" : "l'évaluation"}</a>`, "ouvert");
     } else { etatEval(FERMEE, "ferme"); return; }
     $("etat-eval").querySelector("strong").textContent = titre;
   } catch {

@@ -189,14 +189,14 @@ pre.programme { font-size: 1rem; line-height: 1.6; }
 <!-- Consignes -->
 <section id="ecran-consignes" class="centre" hidden>
   <div class="carte">
-    <p class="surtitre">Évaluation</p>
+    <p class="surtitre" id="cs-surtitre">Évaluation</p>
     <h1 id="cs-titre"></h1>
     <dl class="fiche">
       <dt>Élève</dt><dd id="cs-eleve"></dd>
       <dt>Durée</dt><dd id="cs-duree"></dd>
       <dt>Questions</dt><dd id="cs-questions"></dd>
     </dl>
-    <ul class="regles">
+    <ul class="regles" id="cs-regles">
       <li>L'évaluation s'affiche <strong>en plein écran</strong>.</li>
       <li>Si tu quittes la page (autre onglet, autre fenêtre, touche <kbd>Échap</kbd>, rechargement), ton évaluation est <strong>bloquée</strong> et ton professeur est prévenu.</li>
       <li>Le copier-coller est désactivé.</li>
@@ -294,7 +294,7 @@ pre.programme { font-size: 1rem; line-height: 1.6; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
 <script src="config.js?v=20261102a"></script>
 <script src="ms.js?v=20261102b"></script>
-<script src="evaluations.js?v=20261014d"></script>
+<script src="evaluations.js?v=20261115a"></script>
 <script src="verif.js?v=20261014d"></script>
 <script src="schema.js?v=20261014d"></script>
 <script>
@@ -464,7 +464,7 @@ async function charger() {
     if (l.version !== S.meta.iv) l.file = [];
     S.file = l.file || [];
     S.reprise = !!S.debut;
-    S.verrouille = !!d.eval.verrouille;
+    S.verrouille = !!d.eval.verrouille && !S.meta.entrainement;
     consignes();
   } catch (e) {
     err.textContent = "Connexion impossible. Vérifie l'accès à Internet puis réessaie.";
@@ -482,12 +482,22 @@ function info(titre, texte) {
 }
 
 /* ---------- Consignes ---------- */
+const REGLES_BILAN = [
+  "Ce bilan est un <strong>entraînement</strong> : ta note <strong>ne compte pas</strong>. Il sert à voir ce que tu sais avant l'évaluation.",
+  "Tu peux <strong>exécuter</strong> ton code autant que tu veux. Tu ne sauras pas si ta réponse est juste avant la fin.",
+  "À la fin, tu vois ta note et la <strong>correction de chaque question</strong> : relis-la pour réviser.",
+  "Tu ne peux faire ce bilan qu'une fois : fais-le <strong>comme en évaluation</strong>, sans aide, sans cours.",
+  "Tes réponses sont enregistrées au fur et à mesure. À la fin du temps, la copie est rendue automatiquement."
+];
+const entrainement = () => !!(S.meta && S.meta.entrainement);
 function consignes() {
+  $("cs-surtitre").textContent = entrainement() ? "Bilan d'entraînement" : "Évaluation";
+  if (entrainement()) { $("cs-regles").innerHTML = ""; REGLES_BILAN.forEach(t => { const li = document.createElement("li"); li.innerHTML = t; $("cs-regles").appendChild(li); }); }
   $("cs-titre").textContent = S.meta.titre;
   $("cs-eleve").textContent = `${S.eleve.prenom} · ${S.eleve.classe}`;
   $("cs-duree").textContent = S.reprise ? `${S.meta.duree} min (déjà commencée)` : `${S.meta.duree} min`;
   $("cs-questions").textContent = `${S.meta.nb} questions · ${S.meta.total} points`;
-  $("b-commencer").textContent = S.reprise ? "Reprendre l'évaluation" : "Commencer l'évaluation";
+  $("b-commencer").textContent = (S.reprise ? "Reprendre " : "Commencer ") + (entrainement() ? "le bilan" : "l'évaluation");
   montrer("ecran-consignes");
   if (!python) {
     python = new Python();
@@ -506,7 +516,7 @@ $("b-commencer").addEventListener("click", async () => {
   const csErr = $("cs-erreur");
   csErr.hidden = true;
   S.ignorerJusqua = Date.now() + 2000;
-  const ok = await pleinEcran();
+  const ok = entrainement() || await pleinEcran();   // un bilan d'entraînement n'impose ni plein écran ni surveillance
   if (!ok) { csErr.textContent = "Le plein écran est obligatoire. Utilise Chrome, Edge ou Firefox sur un ordinateur, puis réessaie."; csErr.hidden = false; return; }
   $("b-commencer").disabled = true;
   if (!S.debut || !S.questions.length) {
@@ -666,6 +676,7 @@ function tic() {
 /* ---------- Surveillance ---------- */
 const NOMS_INCIDENTS = { onglet: "changement d'onglet ou de fenêtre", fenetre: "sortie de la fenêtre", plein_ecran: "sortie du plein écran", reprise: "page rechargée ou rouverte" };
 function incident(type, force) {
+  if (entrainement()) return;   // bilan d'entraînement : aucune surveillance, aucun blocage
   if (!S.actif || S.termine || S.verrouille || (!force && Date.now() < S.ignorerJusqua)) return;
   evenement("incident", { type, question: S.actuelle + 1 });
   verrouiller(type);
@@ -803,9 +814,9 @@ function bloc(etiquette, texte, classe) {
 function afficherCorrection() {
   const r = S.resultat;
   if (!r) return;
-  $("fin-titre").textContent = "Copie rendue";
+  $("fin-titre").textContent = entrainement() ? "Bilan terminé" : "Copie rendue";
   $("fin-note").textContent = virgule(r.note20);
-  $("fin-texte").textContent = `Tu as obtenu ${virgule(r.total)} points sur ${r.max}. Voici la correction, question par question.`;
+  $("fin-texte").textContent = `Tu as obtenu ${virgule(r.total)} points sur ${r.max}.` + (entrainement() ? " Cette note ne compte pas : elle te montre ce qu'il reste à réviser avant l'évaluation. " : " ") + "Voici la correction, question par question.";
   const zone = $("fin-correction");
   zone.innerHTML = "";
   S.questions.forEach((q, i) => {
