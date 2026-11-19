@@ -276,7 +276,7 @@ async function verifierEval(session) {
     const meta = ev && (window.EVALUATIONS || []).find(e => e.id === ev.id);
     const titre = meta ? meta.titre : "Évaluation";
     if (ev && ev.rendu) {
-      etatEval(`<strong></strong><span>${meta && meta.entrainement ? "Bilan terminé (il ne compte pas dans ta note)." : "Copie rendue."}</span>${ev.note != null ? `<span class="note">${String(ev.note).replace(".", ",")} / 20</span>` : ""}`, "rendu");
+      etatEval(`<strong></strong><span>${meta && meta.entrainement ? "Bilan terminé (il ne compte pas dans ta note)." : "Copie rendue."}</span>${ev.note != null ? `<span class="note">${String(ev.note).replace(".", ",")} / 20</span>` : ""}${meta && meta.entrainement ? '<a class="bouton plein" href="eval.html">Refaire le bilan</a>' : ""}`, "rendu");
     } else if (ev) {
       etatEval(`<strong></strong><span>${meta ? meta.duree + " min · " + meta.nb + " questions · " : ""}Attends le signal de ton professeur.</span><a class="bouton plein" href="eval.html">${ev.debut ? "Reprendre" : "Commencer"} ${meta && meta.entrainement ? "le bilan" : "l'évaluation"}</a>`, "ouvert");
     } else { etatEval(FERMEE, "ferme"); return; }

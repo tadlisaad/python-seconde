@@ -183,6 +183,7 @@ pre.programme { font-size: 1rem; line-height: 1.6; }
     <h1 id="info-titre"></h1>
     <p id="info-texte"></p>
     <button class="bouton" id="b-reessayer" type="button">Réessayer</button>
+    <button class="bouton plein" id="b-refaire" type="button" hidden>Refaire le bilan</button>
   </div>
 </section>
 
@@ -285,6 +286,7 @@ pre.programme { font-size: 1rem; line-height: 1.6; }
       <h1 id="fin-titre">Copie rendue</h1>
       <p class="note"><span id="fin-note">–</span><small> / 20</small></p>
       <p id="fin-texte">Ta copie a bien été enregistrée.</p>
+      <p><button class="bouton plein" id="b-refaire-fin" type="button" hidden>Refaire le bilan</button></p>
     </div>
     <div class="correction" id="fin-correction" hidden></div>
   </div>
@@ -313,7 +315,7 @@ const local = {
 const S = {
   eleve: null, meta: null, questions: [], debut: null, decalage: 0,
   reponses: {}, actuelle: 0, actif: false, verrouille: false, termine: false,
-  file: [], modifie: false, ignorerJusqua: 0
+  file: [], modifie: false, ignorerJusqua: 0, essai: 1
 };
 const cleLocale = () => `pyeval:${S.eleve.id}:${S.meta.id}`;
 const maintenant = () => Date.now() + S.decalage;
@@ -373,7 +375,7 @@ function generateur(g) {
   return () => { g = (g + 0x6D2B79F5) >>> 0; let t = g; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 function tirerQuestions(brutes) {
-  const alea = generateur(graine(S.eleve.id + ":" + S.meta.id));
+  const alea = generateur(graine(S.eleve.id + ":" + S.meta.id + (S.essai > 1 ? ":" + S.essai : "")))   // un bilan refait tire d'autres questions;
   const ordre = brutes.map((_, i) => i);
   for (let i = ordre.length - 1; i > 0; i--) { const j = Math.floor(alea() * (i + 1)); [ordre[i], ordre[j]] = [ordre[j], ordre[i]]; }
   return ordre.map(k => {
@@ -451,7 +453,16 @@ async function charger() {
     if (!d.eval) return info("Pas d'évaluation en cours", `Bonjour ${d.prenom}. Ton professeur n'a pas encore ouvert l'évaluation. Attends son signal, puis clique sur Réessayer.`);
     S.meta = (window.EVALUATIONS || []).find(e => e.id === d.eval.id);
     if (!S.meta) return info("Page à mettre à jour", "Cette évaluation n'est pas encore sur le site. Préviens ton professeur.");
-    if (d.eval.rendu) return info("Copie déjà rendue", d.eval.note !== undefined && d.eval.note !== null ? `Tu as déjà rendu ta copie. Ta note : ${virgule(d.eval.note)} / 20.` : "Tu as déjà rendu ta copie pour cette évaluation.");
+    S.essai = d.eval.essai || 1;
+    S.decalage = d.eval.maintenant - Date.now();
+    if (d.eval.rendu) {
+      if (S.meta.entrainement) {   // un bilan peut être refait tant que le professeur le laisse ouvert
+        info("Bilan terminé", (d.eval.note !== undefined && d.eval.note !== null ? `Ta note : ${virgule(d.eval.note)} / 20 (elle ne compte pas). ` : "") + "Tu peux le refaire pour t'entraîner : les questions changent un peu.");
+        $("b-refaire").hidden = false;
+        return;
+      }
+      return info("Copie déjà rendue", d.eval.note !== undefined && d.eval.note !== null ? `Tu as déjà rendu ta copie. Ta note : ${virgule(d.eval.note)} / 20.` : "Tu as déjà rendu ta copie pour cette évaluation.");
+    }
     if (d.eval.expire || (d.eval.debut && !d.eval.cle)) return info("Temps écoulé", "Le temps de cette évaluation est écoulé, ou ta copie ne peut plus être ouverte. Préviens ton professeur.");
     // La clé n'est envoyée qu'une fois l'épreuve commencée : avant, il n'y a aucune question dans la page.
     S.questions = d.eval.cle ? tirerQuestions(await dechiffrer(S.meta, d.eval.cle)) : [];
@@ -474,7 +485,21 @@ async function charger() {
     $("b-connexion").disabled = false;
   }
 }
+/* Nouvel essai d'un bilan : copie vierge, nouveau tirage ; le serveur ouvre l'essai quand l'élève clique sur « Commencer ». */
+function nouvelEssai() {
+  S.essai = (S.essai || 1) + 1;
+  S.questions = []; S.debut = null; S.reponses = {}; S.file = []; S.reprise = false;
+  S.termine = false; S.rendant = false; S.actif = false; S.verrouille = false; S.modifie = false; S.resultat = null; S.actuelle = 0;
+  local.suppr(cleLocale());
+  $("fin-correction").hidden = true; $("b-refaire-fin").hidden = true;
+  consignes();
+  $("cs-erreur").hidden = true;
+  if (S.pythonPret) { $("cs-python").hidden = true; $("b-commencer").disabled = false; }
+}
+$("b-refaire").addEventListener("click", nouvelEssai);
+$("b-refaire-fin").addEventListener("click", nouvelEssai);
 function info(titre, texte) {
+  $("b-refaire").hidden = true;
   $("info-titre").textContent = titre;
   $("info-texte").textContent = texte;
   $("b-reessayer").hidden = false;
@@ -486,7 +511,7 @@ const REGLES_BILAN = [
   "Ce bilan est un <strong>entraînement</strong> : ta note <strong>ne compte pas</strong>. Il sert à voir ce que tu sais avant l'évaluation.",
   "Tu peux <strong>exécuter</strong> ton code autant que tu veux. Tu ne sauras pas si ta réponse est juste avant la fin.",
   "À la fin, tu vois ta note et la <strong>correction de chaque question</strong> : relis-la pour réviser.",
-  "Tu ne peux faire ce bilan qu'une fois : fais-le <strong>comme en évaluation</strong>, sans aide, sans cours.",
+  "Tu peux <strong>refaire ce bilan</strong> autant de fois que tu veux tant que ton professeur le laisse ouvert (les questions changent un peu). Fais-le <strong>comme en évaluation</strong>, sans aide, sans cours.",
   "Tes réponses sont enregistrées au fur et à mesure. À la fin du temps, la copie est rendue automatiquement."
 ];
 const entrainement = () => !!(S.meta && S.meta.entrainement);
@@ -501,7 +526,7 @@ function consignes() {
   montrer("ecran-consignes");
   if (!python) {
     python = new Python();
-    python.pret.then(() => { $("cs-python").hidden = true; $("b-commencer").disabled = false; })
+    python.pret.then(() => { S.pythonPret = true; $("cs-python").hidden = true; $("b-commencer").disabled = false; })
       .catch(() => { $("cs-python").textContent = "Python n'a pas pu se charger. Recharge la page."; });
   }
 }
@@ -524,6 +549,7 @@ $("b-commencer").addEventListener("click", async () => {
       const d = await appelPost({ action: "evalEvenement", id: S.eleve.id, code: S.eleve.code, evaluation: S.meta.id, type: "debut" });
       if (!d.ok) throw new Error(d.erreur);
       S.debut = d.debut;
+      if (d.essai) S.essai = d.essai;
       if (!S.questions.length) {
         if (!d.cle) throw new Error("cle");
         S.questions = tirerQuestions(await dechiffrer(S.meta, d.cle));
@@ -565,8 +591,9 @@ function demarrerEpreuve() {
   afficherQuestion(0);
   majSauve();
   envoyerFile();
-  setInterval(tic, 1000);
-  setInterval(() => { if (S.modifie && !S.termine) { S.modifie = false; evenement("sauvegarde", { version: S.meta.iv, reponses: S.reponses }); } }, 30000);
+  clearInterval(S.minuteur); clearInterval(S.sauveur);
+  S.minuteur = setInterval(tic, 1000);
+  S.sauveur = setInterval(() => { if (S.modifie && !S.termine) { S.modifie = false; evenement("sauvegarde", { version: S.meta.iv, reponses: S.reponses }); } }, 30000);
   tic();
   if (S.verrouille) verrouiller(null, true);
   else if (S.reprise) incident("reprise", true);
@@ -815,6 +842,7 @@ function afficherCorrection() {
   const r = S.resultat;
   if (!r) return;
   $("fin-titre").textContent = entrainement() ? "Bilan terminé" : "Copie rendue";
+  $("b-refaire-fin").hidden = !entrainement();
   $("fin-note").textContent = virgule(r.note20);
   $("fin-texte").textContent = `Tu as obtenu ${virgule(r.total)} points sur ${r.max}.` + (entrainement() ? " Cette note ne compte pas : elle te montre ce qu'il reste à réviser avant l'évaluation. " : " ") + "Voici la correction, question par question.";
   const zone = $("fin-correction");
