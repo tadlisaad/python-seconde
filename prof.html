@@ -1294,7 +1294,8 @@ const ERREURS_PROF = {
   trop_de_reglages: "Trop de réglages individuels enregistrés : retirez-en quelques-uns.",
   "action inconnue": "Le script Google n'est pas à jour : collez la nouvelle version de Code.gs et redéployez-la (Déployer > Gérer les déploiements > nouvelle version)."
 };
-const texteErreurProf = e => ERREURS_PROF[e] || "Le script a répondu : " + e;
+const verrouPris = e => /verrouillage/i.test(String(e || ""));
+const texteErreurProf = e => ERREURS_PROF[e] || (verrouPris(e) ? "Le serveur est très sollicité (les élèves enregistrent en même temps) : rien n'a été modifié, réessayez dans quelques secondes." : "Le script a répondu : " + e);
 
 /* Sans serveur (démonstration), les réglages vivent en mémoire pour que l'écran reste manipulable. */
 const DEMO_PROF = { acces: {}, perso: {}, evalPerso: {}, ouvertes: { "2nde A": "eval1" }, code: true };
@@ -1324,8 +1325,15 @@ function demoProf(c) {
 }
 async function appelProf(corps) {
   if (DEMO) return demoProf(corps);
-  const r = await postServeur({ ...corps, cle: CLE });
-  return r.json();
+  /* Si le serveur est occupé (verrou pris trop longtemps), rien n'a été écrit : on réessaie seul, deux fois. */
+  let d;
+  for (let essai = 0; essai < 3; essai++) {
+    const r = await postServeur({ ...corps, cle: CLE });
+    d = await r.json();
+    if (d.ok !== false || !verrouPris(d.erreur) || essai === 2) break;
+    await new Promise(ok => setTimeout(ok, 2500 * (essai + 1)));
+  }
+  return d;
 }
 function dire(id, texte, etat) {
   const el = $(id);
