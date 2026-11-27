@@ -139,6 +139,28 @@ select#choix-eval { border: 1.5px solid var(--trait); border-radius: 8px; paddin
 .rep-question.plein header { background: var(--ok-doux); }
 .rep-question.zero header { background: var(--ko-doux); }
 .detail-grille { display: grid; gap: .6rem; }
+.rep-enonce { padding: .6rem .8rem .2rem; border-bottom: 1px dashed var(--trait); }
+.rep-enonce p { margin: 0 0 .4rem; }
+.rep-enonce code, .rep-choix code { font-family: var(--f-code); background: var(--fond); padding: 0 .25rem; border-radius: 4px; }
+.rep-corps { display: grid; gap: .5rem; padding: .6rem .8rem .8rem; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); }
+.rep-bloc { min-width: 0; }
+.rep-bloc > span { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--doux); font-weight: 700; }
+.rep-bloc pre { margin: .15rem 0 0; padding: .45rem .65rem; border: 1px solid var(--trait); border-radius: 8px; background: var(--fond); }
+.rep-bloc.bon pre { border-color: var(--ok); background: var(--ok-doux); }
+.rep-bloc.faux pre { border-color: var(--ko); background: var(--ko-doux); }
+.rep-bloc.large { grid-column: 1 / -1; }
+.rep-choix { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; }
+.rep-choix li { padding: .3rem .6rem; border: 1px solid var(--trait); border-radius: 8px; }
+.rep-choix li.bon { border-color: var(--ok); background: var(--ok-doux); }
+.rep-choix li.faux { border-color: var(--ko); background: var(--ko-doux); }
+.rep-info { grid-column: 1 / -1; margin: 0; color: var(--doux); font-size: .9rem; }
+.rep-etat { margin: 0 0 .6rem; color: var(--doux); font-size: .9rem; }
+.rep-etat.ko { color: var(--ko); }
+td.note-cliquable { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.schema-zone { background: var(--papier, #fff); border: 1px solid var(--trait); border-radius: 10px; padding: .6rem; overflow-x: auto; display: flex; justify-content: center; grid-column: 1 / -1; }
+.schema { max-width: 100%; height: auto; }
+.schema text { font: 14px var(--f-texte, sans-serif); dominant-baseline: central; text-anchor: middle; fill: currentColor; }
+.schema .sch-etiquette { font-size: 12px; font-weight: 700; dominant-baseline: auto; }
 
 /* Fiche élève */
 #t-ac-eval-perso td, #t-ac-eval-perso th { cursor: default; }
@@ -480,6 +502,7 @@ table.sans-clic tbody tr:hover td { background: none; }
 <script src="evaluations.js?v=20261115a"></script>
 <script>window.PARCOURS_PYTHON = window.PARCOURS;</script>
 <script src="algorigrammes.js?v=20261014d"></script>
+<script src="schema.js?v=20261014d"></script>
 <script>
 "use strict";
 const URL_SERVEUR = (window.CONFIG && CONFIG.url || "").trim();
@@ -1205,7 +1228,7 @@ function dessinerEvaluation(liste) {
     { cle: "incidents", titre: "Incidents", valeur: x => x.incidents.length,
       rendu: (td, x) => { td.textContent = x.incidents.length || ""; td.title = x.incidents.map(i => `${dateHeure(i.t)} : ${NOMS_INCIDENTS[i.type] || i.type}`).join("\n"); if (x.incidents.length) td.style.color = "var(--ko)"; td.style.fontWeight = "700"; } },
     { cle: "note", titre: "Note / 20", valeur: x => noteSur20(x.rendu),
-      rendu: (td, x) => { td.textContent = x.rendu ? String(noteSur20(x.rendu)).replace(".", ",") : ""; td.style.fontWeight = "700"; } },
+      rendu: (td, x) => { td.textContent = x.rendu ? String(noteSur20(x.rendu)).replace(".", ",") : ""; td.style.fontWeight = "700"; if (x.rendu) { td.className = "note-cliquable"; td.title = "Voir la copie complète (énoncés, réponses, correction)"; } } },
     ...Array.from({ length: meta.nb }, (_, k) => ({ cle: "q" + k, titre: "Q" + (k + 1), valeur: x => { const d = detailQ(x.rendu, k); return d ? d.points : null; },
       rendu: (td, x) => { const d = detailQ(x.rendu, k); td.textContent = d ? String(d.points).replace(".", ",") + (d.v ? " " + d.v : "") : ""; if (d) { td.style.color = d.points === d.max ? "var(--ok)" : d.points === 0 ? "var(--ko)" : ""; td.title = d.v ? `version ${d.v}` : ""; } } })),
     { cle: "duree", titre: "Durée", valeur: x => x.debut ? ((x.rendu ? x.rendu.t : Date.now()) - x.debut) : null,
@@ -1236,22 +1259,93 @@ function dessinerDetailEval(etats, meta) {
   const zr = $("evd-reponses");
   zr.innerHTML = "";
   if (!x.rendu) { const p = document.createElement("p"); p.className = "vide"; p.textContent = "Les réponses apparaîtront ici quand la copie sera rendue."; zr.appendChild(p); return; }
-  (x.rendu.details || []).map((d, i) => ({ d, i, q: d.q || i + 1 })).sort((a, b) => a.q - b.q).forEach(({ d, i: k, q }) => {
-    const art = document.createElement("article");
-    art.className = "rep-question" + (d.points === d.max ? " plein" : d.points === 0 ? " zero" : "");
-    art.innerHTML = "<header><strong></strong><span></span><span class=\"pts\"></span></header><pre></pre>";
-    art.querySelector("strong").textContent = `Question ${q}` + (d.v ? ` (version ${d.v})` : "");
-    const infos = [];
-    if (d.tests) infos.push(`tests réussis : ${d.tests}`);
-    if (d.juste !== undefined) infos.push(d.juste ? "réponse juste" : "réponse fausse");
-    if (d.regles && d.regles.length) infos.push("consigne non respectée : " + d.regles.join(" "));
-    if (d.erreur) infos.push("erreur : " + (typeof nomErreur === "function" ? nomErreur(d.erreur) : d.erreur));
-    art.querySelector("header span").textContent = infos.join(" · ");
-    art.querySelector(".pts").textContent = `${String(d.points).replace(".", ",")} / ${d.max}`;
-    const rep = x.rendu.reponses ? x.rendu.reponses[k] : undefined;
-    art.querySelector("pre").textContent = rep !== undefined && String(rep).trim() ? rep : "(pas de réponse)";
-    zr.appendChild(art);
-  });
+  const etat = document.createElement("p"); etat.className = "rep-etat"; etat.textContent = "Chargement des énoncés…";
+  zr.appendChild(etat);
+  const brutes = {};
+  const dessiner = () => {
+    if (EVAL_ELEVE !== x.s.id || $("evd-reponses") !== zr) return;
+    zr.querySelectorAll("article").forEach(a => a.remove());
+    (x.rendu.details || []).map((d, i) => ({ d, i, q: d.q || i + 1 })).sort((a, b) => a.q - b.q).forEach(({ d, i: k, q }) => {
+      zr.appendChild(carteCopie(d, q, x.rendu.reponses ? x.rendu.reponses[k] : undefined, brutes.liste ? brutes.liste[q - 1] : null));
+    });
+  };
+  dessiner();
+  questionsEval(meta).then(liste => { brutes.liste = liste; etat.remove(); dessiner(); })
+    .catch(err => { etat.className = "rep-etat ko"; etat.textContent = "Énoncés indisponibles (" + (err && err.message || err) + ") : mettez à jour le script Google (Code.gs) pour les afficher. Les réponses de l'élève restent visibles ci-dessous."; });
+}
+
+/* ---------- Copie complète : énoncé + réponse de l'élève + correction ---------- */
+const QUESTIONS_EVAL = {};
+function b64(t) { return Uint8Array.from(atob(t), c => c.charCodeAt(0)); }
+function questionsEval(meta) {
+  if (!QUESTIONS_EVAL[meta.id]) {
+    QUESTIONS_EVAL[meta.id] = (async () => {
+      const r = await appelProf({ action: "profCleEval", evaluation: meta.id });
+      if (!r || !r.ok) throw new Error(r && r.erreur === "action_inconnue" ? "script pas à jour" : (r && r.erreur) || "réponse vide");
+      const k = await crypto.subtle.importKey("raw", b64(r.cleEval), "AES-GCM", false, ["decrypt"]);
+      const clair = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(meta.iv) }, k, b64(meta.donnees));
+      return JSON.parse(new TextDecoder().decode(clair)).questions;
+    })().catch(e => { delete QUESTIONS_EVAL[meta.id]; throw e; });
+  }
+  return QUESTIONS_EVAL[meta.id];
+}
+function blocRep(etiquette, texte, classe) {
+  const d = document.createElement("div"); d.className = "rep-bloc " + (classe || "");
+  const e = document.createElement("span"); e.textContent = etiquette;
+  const p = document.createElement("pre"); p.textContent = texte;
+  d.append(e, p);
+  return d;
+}
+function carteCopie(d, q, rep, brute) {
+  const art = document.createElement("article");
+  art.className = "rep-question" + (d.points === d.max ? " plein" : d.points === 0 ? " zero" : "");
+  const h = document.createElement("header");
+  const t = document.createElement("strong"); t.textContent = `Question ${q}` + (brute && brute.titre ? " · " + brute.titre : "") + (d.v ? ` (version ${d.v})` : "");
+  const infos = [];
+  if (d.tests) infos.push(`tests réussis : ${d.tests}`);
+  if (d.juste !== undefined) infos.push(d.juste ? "réponse juste" : "réponse fausse");
+  if (d.regles && d.regles.length) infos.push("consigne non respectée : " + d.regles.join(" "));
+  if (d.erreur) infos.push("erreur : " + (typeof nomErreur === "function" ? nomErreur(d.erreur) : d.erreur));
+  const mid = document.createElement("span"); mid.textContent = infos.join(" · ");
+  const pts = document.createElement("span"); pts.className = "pts"; pts.textContent = `${String(d.points).replace(".", ",")} / ${d.max}`;
+  h.append(t, mid, pts);
+  art.appendChild(h);
+  const sansRep = rep === undefined || !String(rep).trim();
+  const v = brute && d.v ? brute.variantes[("ABC").indexOf(d.v)] : null;
+  if (!v) {   // énoncés pas encore chargés (ou copie ancienne sans version) : réponse seule
+    const pre = document.createElement("pre"); pre.textContent = sansRep ? "(pas de réponse)" : rep; art.appendChild(pre);
+    return art;
+  }
+  const en = document.createElement("div"); en.className = "rep-enonce"; en.innerHTML = v.enonce; art.appendChild(en);
+  const corps = document.createElement("div"); corps.className = "rep-corps";
+  if (v.schema && window.Schema) { const z = document.createElement("div"); z.className = "schema-zone"; z.innerHTML = Schema.dessiner(v.schema); corps.appendChild(z); }
+  if (v.type === "qcm") {
+    if (v.programme) corps.appendChild(blocRep("L'instruction", v.programme, "large"));
+    const bonne = v.choix[v.bonne];
+    const ul = document.createElement("ul"); ul.className = "rep-choix";
+    v.choix.forEach(c => {
+      const li = document.createElement("li"), code = document.createElement("code");
+      code.textContent = c; li.appendChild(code);
+      if (c === bonne) { li.className = "bon"; li.append(" ✓ bonne réponse"); }
+      else if (c === rep) { li.className = "faux"; li.append(" ✗ réponse de l'élève"); }
+      if (c === bonne && c === rep) li.append(" (choisie par l'élève)");
+      ul.appendChild(li);
+    });
+    const bl = document.createElement("div"); bl.className = "rep-bloc large"; bl.appendChild(ul);
+    corps.appendChild(bl);
+    if (sansRep) { const p = document.createElement("p"); p.className = "rep-info"; p.textContent = "L'élève n'a pas répondu."; corps.appendChild(p); }
+  } else if (v.type === "prediction") {
+    if (v.programme) corps.appendChild(blocRep("Le programme", v.programme, "large"));
+    corps.appendChild(blocRep("Réponse de l'élève", sansRep ? "(pas de réponse)" : String(rep).trim(), d.points === d.max ? "bon" : "faux"));
+    corps.appendChild(blocRep("Bonne réponse", v.attendu, "bon"));
+  } else {
+    if (v.depart) corps.appendChild(blocRep("Programme de départ", v.depart));
+    corps.appendChild(blocRep("Programme de l'élève", sansRep ? "(pas de réponse : programme de départ)" : rep, d.points === d.max ? "bon" : ""));
+    corps.appendChild(blocRep("Une solution", v.corrige || "", "bon"));
+  }
+  if (v.explication) { const p = document.createElement("p"); p.className = "rep-info"; p.textContent = v.explication; corps.appendChild(p); }
+  art.appendChild(corps);
+  return art;
 }
 
 $("choix-eval").addEventListener("change", e => { EVAL_CHOISIE = e.target.value; EVAL_ELEVE = null; dessinerEvaluation(calculer()); });
