@@ -702,7 +702,7 @@ function depuis(t) {
   const j = joursEntre(jourCle(t), jourCle(Date.now()));
   return j === 0 ? "aujourd'hui" : j === 1 ? "hier" : `il y a ${j} j`;
 }
-function nomComplet(s) { return [s.prenom, s.nom].filter(Boolean).join(" ") || s.id; }
+function nomComplet(s) { return [s.nom, s.prenom].filter(Boolean).join(" ") || s.id; }   // NOM Prénom
 
 function alertesPour(s, medianeReussis) {
   const r = [];
